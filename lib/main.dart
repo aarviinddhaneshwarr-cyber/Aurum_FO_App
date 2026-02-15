@@ -37,11 +37,14 @@ class AXTheme {
     fontSize: 13,
     fontWeight: FontWeight.w500,
   );
+
+  // FIX: Added 'value' style here
   static TextStyle get value => GoogleFonts.sourceCodePro(
     color: mutedGold,
     fontWeight: FontWeight.bold,
     letterSpacing: 1.5,
   );
+
   static TextStyle get digital => GoogleFonts.orbitron(
     color: Colors.white,
     fontWeight: FontWeight.bold,
@@ -92,7 +95,7 @@ class CyberButton extends StatelessWidget {
   final bool isDanger;
   final bool isManual;
   final bool isSuccess;
-  final bool isWarning;
+  final bool isWarning; // FIX: Added parameter
 
   const CyberButton({
     super.key,
@@ -101,18 +104,21 @@ class CyberButton extends StatelessWidget {
     this.isDanger = false,
     this.isManual = false,
     this.isSuccess = false,
-    this.isWarning = false,
+    this.isWarning = false, // FIX: Initialize parameter
   });
 
   @override
   Widget build(BuildContext context) {
-    Color color = isDanger
-        ? AXTheme.danger
-        : (isManual
-              ? AXTheme.manual
-              : (isSuccess
-                    ? AXTheme.success
-                    : (isWarning ? AXTheme.warning : AXTheme.cyanFlux)));
+    Color color = AXTheme.cyanFlux;
+    if (isDanger)
+      color = AXTheme.danger;
+    else if (isManual)
+      color = AXTheme.manual;
+    else if (isSuccess)
+      color = AXTheme.success;
+    else if (isWarning)
+      color = AXTheme.warning;
+
     if (onTap == null) {
       return Container(
         height: 50,
@@ -1768,7 +1774,7 @@ class _AgreementScreenState extends State<AgreementScreen> {
   }
 }
 
-// --- SCREEN 6: PAYOUT (PHASE 7.1 - WITH MANUAL DETAILS FORM) ---
+// --- SCREEN 6: PAYOUT (PHASE 7.1 - SETTLEMENT DESK) ---
 class PayoutScreen extends StatefulWidget {
   const PayoutScreen({super.key});
   @override
@@ -1787,7 +1793,6 @@ class _PayoutScreenState extends State<PayoutScreen> {
         content: Text("Request Link Sent to Customer SMS/WhatsApp"),
       ),
     );
-    // Simulate Customer Filling it remotely
     await Future.delayed(const Duration(seconds: 3));
     if (mounted)
       setState(() {
@@ -1797,7 +1802,6 @@ class _PayoutScreenState extends State<PayoutScreen> {
   }
 
   void _openManualEntryForm() {
-    // 1. Ask for OTP First
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -1850,7 +1854,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
                 onTap: () {
                   if (_manualOtpCtrl.text.isNotEmpty) {
                     Navigator.pop(ctx);
-                    _showDetailedInputForm(); // 2. Show Detailed Form
+                    _showDetailedInputForm();
                   }
                 },
               ),
@@ -1889,7 +1893,6 @@ class _PayoutScreenState extends State<PayoutScreen> {
               Expanded(
                 child: TabBarView(
                   children: [
-                    // KYC TAB
                     SingleChildScrollView(
                       child: Column(
                         children: [
@@ -1926,7 +1929,6 @@ class _PayoutScreenState extends State<PayoutScreen> {
                         ],
                       ),
                     ),
-                    // BANK TAB
                     SingleChildScrollView(
                       child: Column(
                         children: [
@@ -2004,7 +2006,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
       context,
     ).showSnackBar(const SnackBar(content: Text("Approval Request Sent...")));
     await Future.delayed(const Duration(seconds: 2));
-    setState(() => _step = 2); // Approved
+    setState(() => _step = 2);
   }
 
   void _initiateTransfer() async {
@@ -2088,7 +2090,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
                 Opacity(
                   opacity: 0.5,
                   child: CyberButton(text: "INITIATE TRANSFER", onTap: null),
-                ), // Disabled Button
+                ),
               ] else ...[
                 Text(
                   "APPROVED BY CUSTOMER",
