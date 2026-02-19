@@ -83,6 +83,16 @@ class AXTheme {
   }
 }
 
+// --- STRICT FORMATTERS ---
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    return TextEditingValue(
+        text: newValue.text.toUpperCase(), selection: newValue.selection);
+  }
+}
+
 class AurumFOApp extends StatelessWidget {
   const AurumFOApp({super.key});
   @override
@@ -131,10 +141,12 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
     _updateLog("PINGING SATELLITES...", 1, 0, 0, 0);
     try {
       LocationPermission p = await Geolocator.checkPermission();
-      if (p == LocationPermission.denied)
-        p = await Geolocator.requestPermission();
       bool isOn = await Geolocator.isLocationServiceEnabled();
-      _gpsStatus = (p == LocationPermission.deniedForever || !isOn) ? 3 : 2;
+      _gpsStatus = (p == LocationPermission.denied ||
+              p == LocationPermission.deniedForever ||
+              !isOn)
+          ? 3
+          : 2;
     } catch (e) {
       _gpsStatus = 3;
     }
@@ -240,7 +252,7 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
                     child: FadeInDown(
                         child: Text("AURUM X", style: AXTheme.brand))),
                 Center(
-                    child: Text("SECURE TERMINAL v1.7",
+                    child: Text("SECURE TERMINAL v1.9",
                         style: AXTheme.terminal.copyWith(
                             letterSpacing: 2, color: Colors.white54))),
                 const Spacer(),
@@ -382,7 +394,7 @@ class _DutyLoginScreenState extends State<DutyLoginScreen> {
                 decoration: AXTheme.getPanel(isActive: true),
                 child: TextField(
                     controller: _idCtrl,
-                    inputFormatters: [_upperCaseFormatter],
+                    inputFormatters: [UpperCaseTextFormatter()],
                     style: AXTheme.input,
                     onChanged: (val) => setState(() {}),
                     decoration: const InputDecoration(
@@ -472,8 +484,14 @@ class _DutyLoginScreenState extends State<DutyLoginScreen> {
                     child: CircularProgressIndicator(color: AXTheme.cyanFlux))
                 : CyberButton(
                     text: "START SHIFT",
-                    onTap: isFormValid ? _startShift : null,
-                    isManual: !isFormValid)
+                    onTap: (_isBioVerified &&
+                            _isBondSigned &&
+                            _idCtrl.text.isNotEmpty)
+                        ? _startShift
+                        : null,
+                    isManual: !(_isBioVerified &&
+                        _isBondSigned &&
+                        _idCtrl.text.isNotEmpty))
           ]))
     ]));
   }
@@ -723,7 +741,7 @@ class _RadarDashboardScreenState extends State<RadarDashboardScreen>
 }
 
 // ==========================================
-// 6. VALUATION COCKPIT
+// 6. VALUATION COCKPIT (DELETE WARNING ADDED)
 // ==========================================
 
 class ValuationScreen extends StatefulWidget {
@@ -747,6 +765,7 @@ class _ValuationScreenState extends State<ValuationScreen> {
   final TextEditingController _purityCtrl = TextEditingController();
   String _aiOriginalName = "";
   String _aiOriginalDesc = "";
+  final double _goldRate = 7245.0;
 
   List<Map<String, dynamic>> get _displayItems =>
       _items.where((i) => i['isManual'] == _isManualMode).toList();
@@ -776,6 +795,9 @@ class _ValuationScreenState extends State<ValuationScreen> {
       return;
     }
     setState(() {
+      double w = double.parse(_weightCtrl.text);
+      double p = double.parse(_purityCtrl.text);
+      double price = w * (p / 24.0) * _goldRate;
       _items.add({
         "name": _nameCtrl.text,
         "desc": _descCtrl.text,
@@ -783,7 +805,8 @@ class _ValuationScreenState extends State<ValuationScreen> {
         "purity": _purityCtrl.text,
         "unit": _isKaratMode ? "K" : "%",
         "isManual": _isManualMode,
-        "aiOriginal": _aiOriginalName
+        "aiOriginal": _aiOriginalName,
+        "price": price
       });
       _resetForm();
     });
@@ -807,8 +830,29 @@ class _ValuationScreenState extends State<ValuationScreen> {
         content: Text(msg, style: AXTheme.heading.copyWith(fontSize: 12))));
   }
 
-  void _deleteItem(int index) {
-    setState(() => _items.removeAt(index));
+  // NEW: CONFIRM REMOVE FOR VALUATION
+  void _confirmRemove(Map<String, dynamic> item) {
+    showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+                backgroundColor: AXTheme.panel,
+                title: Text("REMOVE ITEM?",
+                    style: AXTheme.heading.copyWith(color: AXTheme.danger)),
+                content: Text("Confirm deletion from manifest.",
+                    style: AXTheme.body),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text("CANCEL",
+                          style: TextStyle(color: Colors.white))),
+                  TextButton(
+                      onPressed: () {
+                        setState(() => _items.remove(item));
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text("REMOVE",
+                          style: TextStyle(color: AXTheme.danger)))
+                ]));
   }
 
   Future<bool> _onWillPop() async {
@@ -944,25 +988,44 @@ class _ValuationScreenState extends State<ValuationScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(children: [
                 Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(15),
                     decoration: AXTheme.getPanel(
                         isActive: !_isManualMode, isManual: _isManualMode),
                     child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           Column(children: [
-                            Text("ITEMS", style: AXTheme.terminal),
+                            Text("ITEMS",
+                                style: AXTheme.terminal.copyWith(fontSize: 10)),
                             Text("${_displayItems.length}",
-                                style: AXTheme.digital.copyWith(fontSize: 24))
+                                style: AXTheme.digital.copyWith(fontSize: 20))
                           ]),
                           Container(
-                              width: 1, height: 30, color: Colors.white24),
+                              width: 1, height: 25, color: Colors.white24),
                           Column(children: [
-                            Text("WEIGHT", style: AXTheme.terminal),
+                            Text("WEIGHT",
+                                style: AXTheme.terminal.copyWith(fontSize: 10)),
                             Text("${_displayWeight.toStringAsFixed(2)} g",
+                                style: AXTheme.digital.copyWith(fontSize: 20))
+                          ]),
+                          Container(
+                              width: 1, height: 25, color: Colors.white24),
+                          Column(children: [
+                            Text("AVG PURITY",
+                                style: AXTheme.terminal.copyWith(fontSize: 10)),
+                            Text("${_avgPurity.toStringAsFixed(1)} K",
                                 style: AXTheme.digital.copyWith(
-                                    fontSize: 24, color: AXTheme.mutedGold))
-                          ])
+                                    fontSize: 20, color: AXTheme.mutedGold))
+                          ]),
+                          Container(
+                              width: 1, height: 25, color: Colors.white24),
+                          Column(children: [
+                            Text("RATE",
+                                style: AXTheme.terminal.copyWith(fontSize: 10)),
+                            Text("₹7245",
+                                style: AXTheme.digital.copyWith(
+                                    fontSize: 20, color: AXTheme.success))
+                          ]),
                         ])),
                 const SizedBox(height: 20),
                 if (_displayItems.isNotEmpty)
@@ -1000,7 +1063,7 @@ class _ValuationScreenState extends State<ValuationScreen> {
                                         AXTheme.value.copyWith(fontSize: 12)),
                                 const SizedBox(width: 10),
                                 IconButton(
-                                    onPressed: () => _deleteItem(index),
+                                    onPressed: () => _confirmRemove(e),
                                     icon: const Icon(Icons.delete,
                                         color: AXTheme.danger, size: 20))
                               ])
@@ -1175,7 +1238,7 @@ class _ValuationScreenState extends State<ValuationScreen> {
 }
 
 // ==========================================
-// 7. AGREEMENT SCREEN (FAST SIGNATURE WIDGET)
+// 7. AGREEMENT SCREEN
 // ==========================================
 
 class AgreementScreen extends StatefulWidget {
@@ -1192,7 +1255,6 @@ class AgreementScreen extends StatefulWidget {
 }
 
 class _AgreementScreenState extends State<AgreementScreen> {
-  // MUTABLE LIST FOR AGREEMENT SCREEN
   late List<Map<String, dynamic>> _finalItems;
   double _chargePercent = 12.0;
   final double _discountPercent = 3.0;
@@ -1217,17 +1279,6 @@ class _AgreementScreenState extends State<AgreementScreen> {
   double get _chargeAmount => _grossValuation * (_chargePercent / 100);
   double get _discountAmount => _grossValuation * (_discountPercent / 100);
   double get _netPayout => _grossValuation - _chargeAmount + _discountAmount;
-  double get _totalWeight =>
-      _finalItems.fold(0.0, (sum, item) => sum + double.parse(item['weight']));
-  double get _avgPurity {
-    if (_finalItems.isEmpty) return 0.0;
-    double totalFine = 0.0;
-    for (var item in _finalItems) {
-      totalFine +=
-          (double.parse(item['weight']) * double.parse(item['purity']));
-    }
-    return _totalWeight == 0 ? 0.0 : (totalFine / _totalWeight);
-  }
 
   void _showNegotiationDialog() {
     double tempCharge = _chargePercent;
@@ -1309,10 +1360,28 @@ class _AgreementScreenState extends State<AgreementScreen> {
             }));
   }
 
-  void _removeItem(int index) {
-    setState(() {
-      _finalItems.removeAt(index);
-    });
+  void _confirmRemove(Map<String, dynamic> item) {
+    showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+                backgroundColor: AXTheme.panel,
+                title: Text("REMOVE ITEM?",
+                    style: AXTheme.heading.copyWith(color: AXTheme.danger)),
+                content:
+                    Text("Confirm deletion from deal.", style: AXTheme.body),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text("CANCEL",
+                          style: TextStyle(color: Colors.white))),
+                  TextButton(
+                      onPressed: () {
+                        setState(() => _finalItems.remove(item));
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text("REMOVE",
+                          style: TextStyle(color: AXTheme.danger)))
+                ]));
   }
 
   @override
@@ -1329,9 +1398,43 @@ class _AgreementScreenState extends State<AgreementScreen> {
             padding: const EdgeInsets.all(20),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // SUMMARY CARD
-              Text("PROVISIONAL ESTIMATION", style: AXTheme.terminal),
-              const SizedBox(height: 10),
+              Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: AXTheme.getPanel(isActive: true),
+                  child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Column(children: [
+                          Text("ITEMS",
+                              style: AXTheme.terminal.copyWith(fontSize: 10)),
+                          Text("${_finalItems.length}",
+                              style: AXTheme.digital.copyWith(fontSize: 18))
+                        ]),
+                        Container(width: 1, height: 25, color: Colors.white24),
+                        Column(children: [
+                          Text("WEIGHT",
+                              style: AXTheme.terminal.copyWith(fontSize: 10)),
+                          Text("${widget.totalWeight.toStringAsFixed(2)} g",
+                              style: AXTheme.digital.copyWith(fontSize: 18))
+                        ]),
+                        Container(width: 1, height: 25, color: Colors.white24),
+                        Column(children: [
+                          Text("AVG PURITY",
+                              style: AXTheme.terminal.copyWith(fontSize: 10)),
+                          Text("${widget.avgPurity.toStringAsFixed(1)} K",
+                              style: AXTheme.digital.copyWith(
+                                  fontSize: 18, color: AXTheme.mutedGold))
+                        ]),
+                        Container(width: 1, height: 25, color: Colors.white24),
+                        Column(children: [
+                          Text("RATE",
+                              style: AXTheme.terminal.copyWith(fontSize: 10)),
+                          Text("₹7245",
+                              style: AXTheme.digital.copyWith(
+                                  fontSize: 18, color: AXTheme.success))
+                        ]),
+                      ])),
+              const SizedBox(height: 20),
               Container(
                   padding: const EdgeInsets.all(20),
                   decoration: AXTheme.getPanel(isActive: true),
@@ -1353,7 +1456,6 @@ class _AgreementScreenState extends State<AgreementScreen> {
                               style:
                                   AXTheme.value.copyWith(color: AXTheme.danger))
                         ]),
-                    // DESCRIPTION TEXT FOR CHARGES
                     Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -1365,7 +1467,6 @@ class _AgreementScreenState extends State<AgreementScreen> {
                         "Priority Waiver (3%)",
                         "+ ₹ ${_discountAmount.toStringAsFixed(0)}",
                         AXTheme.success),
-                    // DESCRIPTION TEXT FOR DISCOUNT
                     Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -1384,16 +1485,13 @@ class _AgreementScreenState extends State<AgreementScreen> {
                         ]),
                   ])),
               const SizedBox(height: 20),
-
-              // ITEMIZED LIST IN AGREEMENT (Requested Update)
               Text("ITEMIZED BREAKDOWN", style: AXTheme.terminal),
               const SizedBox(height: 10),
               if (_finalItems.isEmpty)
                 Center(
                     child: Text("NO ITEMS LEFT IN DEAL",
                         style: AXTheme.body.copyWith(color: AXTheme.danger))),
-              ...List.generate(_finalItems.length, (index) {
-                var item = _finalItems[index];
+              ..._finalItems.map((item) {
                 double val = double.parse(item['weight']) *
                     (double.parse(item['purity']) / 24.0) *
                     _goldRate;
@@ -1422,13 +1520,12 @@ class _AgreementScreenState extends State<AgreementScreen> {
                                     fontSize: 12, color: AXTheme.success)),
                             const SizedBox(width: 10),
                             GestureDetector(
-                                onTap: () => _removeItem(index),
+                                onTap: () => _confirmRemove(item),
                                 child: const Icon(Icons.delete_outline,
                                     size: 18, color: AXTheme.danger))
                           ])
                         ]));
-              }),
-
+              }).toList(),
               const SizedBox(height: 30),
               Text("TERMS & SIGNATURE", style: AXTheme.terminal),
               const SizedBox(height: 10),
@@ -1443,7 +1540,6 @@ class _AgreementScreenState extends State<AgreementScreen> {
                       style: AXTheme.body
                           .copyWith(fontSize: 11, color: Colors.white54))),
               const SizedBox(height: 20),
-              // FAST SIGNATURE PAD (ISOLATED)
               const FastSignaturePad(),
             ])));
   }
@@ -1502,9 +1598,8 @@ class _FastSignaturePadState extends State<FastSignaturePad> {
                   content: Text("SIGNATURE REQUIRED")));
               return;
             }
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                backgroundColor: AXTheme.success,
-                content: Text("PAYMENT INITIATED...")));
+            Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const KYCPaymentScreen()));
           })
     ]);
   }
@@ -1528,6 +1623,371 @@ class SignaturePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(SignaturePainter oldDelegate) => true;
+}
+
+// ==========================================
+// 8. KYC & PAYMENT SCREEN (REAL LOGIC)
+// ==========================================
+
+class KYCPaymentScreen extends StatefulWidget {
+  const KYCPaymentScreen({super.key});
+  @override
+  State<KYCPaymentScreen> createState() => _KYCPaymentScreenState();
+}
+
+class _KYCPaymentScreenState extends State<KYCPaymentScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  bool _kycVerified = false;
+  bool _bankVerified = false;
+  // STATE FOR OCR BUTTON COLORS
+  bool _panScanned = false;
+  bool _aadhaarScanned = false;
+
+  final panValidator = RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$');
+  final ifscValidator = RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$');
+
+  TextEditingController panCtrl = TextEditingController();
+  TextEditingController aadhaarCtrl = TextEditingController();
+  TextEditingController accCtrl = TextEditingController();
+  TextEditingController ifscCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  void _simulateFetch(String type) {
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => Center(
+            child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                    color: AXTheme.panel,
+                    borderRadius: BorderRadius.circular(10)),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const CircularProgressIndicator(color: AXTheme.cyanFlux),
+                  const SizedBox(height: 20),
+                  Text("FETCHING $type DATA...", style: AXTheme.body)
+                ]))));
+    Future.delayed(const Duration(seconds: 3), () {
+      Navigator.pop(context);
+      setState(() {
+        if (type == "DIGILOCKER") {
+          panCtrl.text = "ABCDE1234F";
+          aadhaarCtrl.text = "123456789012";
+          _panScanned = true;
+          _aadhaarScanned = true;
+        } else if (type == "OCR_PAN") {
+          panCtrl.text = "ABCDE1234F";
+          _panScanned = true;
+        } else if (type == "OCR_AADHAAR") {
+          aadhaarCtrl.text = "123456789012";
+          _aadhaarScanned = true;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AXTheme.success,
+          content: Text("DATA FETCHED SUCCESSFULLY")));
+    });
+  }
+
+  void _verifyKYC() {
+    if (!panValidator.hasMatch(panCtrl.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AXTheme.danger,
+          content: Text("INVALID PAN FORMAT")));
+      return;
+    }
+    if (aadhaarCtrl.text.length != 12) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AXTheme.danger,
+          content: Text("AADHAAR MUST BE 12 DIGITS")));
+      return;
+    }
+    setState(() => _kycVerified = true);
+  }
+
+  void _verifyBank() {
+    if (accCtrl.text.length < 9) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AXTheme.danger,
+          content: Text("INVALID ACCOUNT NUMBER")));
+      return;
+    }
+    if (!ifscValidator.hasMatch(ifscCtrl.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AXTheme.danger,
+          content: Text("INVALID IFSC (5th char must be 0)")));
+      return;
+    }
+    setState(() => _bankVerified = true);
+  }
+
+  void _showCustomerOTPDialog() {
+    TextEditingController otpCtrl = TextEditingController();
+    showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+            backgroundColor: AXTheme.panel,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: AXTheme.cyanFlux)),
+            child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text("CUSTOMER AUTHORIZATION",
+                      style: AXTheme.heading.copyWith(color: AXTheme.cyanFlux)),
+                  const SizedBox(height: 10),
+                  Text(
+                      "Ask customer for OTP sent to their mobile to authorize this transaction.",
+                      style: AXTheme.body.copyWith(fontSize: 11),
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 20),
+                  TextField(
+                      controller: otpCtrl,
+                      textAlign: TextAlign.center,
+                      style: AXTheme.input,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          hintText: "ENTER CUSTOMER OTP",
+                          hintStyle: TextStyle(color: Colors.white24))),
+                  const SizedBox(height: 20),
+                  CyberButton(
+                      text: "AUTHORIZE & PAY",
+                      onTap: () {
+                        if (otpCtrl.text.length == 4) {
+                          Navigator.pop(ctx);
+                          _processFinalPayment();
+                        }
+                      })
+                ]))));
+  }
+
+  void _processFinalPayment() {
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+                backgroundColor: AXTheme.panel,
+                icon: const Icon(Icons.check_circle,
+                    color: AXTheme.success, size: 60),
+                title: Text("PAYMENT SUCCESSFUL",
+                    style: AXTheme.heading.copyWith(color: AXTheme.success)),
+                content: Text(
+                    "Transaction ID: TXN${math.Random().nextInt(999999)}\nFunds Transferred.",
+                    style: AXTheme.body,
+                    textAlign: TextAlign.center),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text("PRINT BARCODE",
+                          style: TextStyle(color: Colors.white)))
+                ]));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: AXTheme.cyanFlux),
+                onPressed: () => Navigator.pop(context)),
+            title: Text("PAYMENT GATEWAY",
+                style: AXTheme.heading.copyWith(fontSize: 16))),
+        body: Column(children: [
+          TabBar(
+              controller: _tabController,
+              indicatorColor: AXTheme.cyanFlux,
+              labelColor: AXTheme.cyanFlux,
+              unselectedLabelColor: Colors.white54,
+              tabs: const [
+                Tab(text: "IDENTITY VAULT"),
+                Tab(text: "BANKING LAYER")
+              ]),
+          Expanded(
+              child: TabBarView(controller: _tabController, children: [
+            SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      GestureDetector(
+                          onTap: () => _simulateFetch("DIGILOCKER"),
+                          child: Container(
+                              padding: const EdgeInsets.all(15),
+                              decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.white12)),
+                              child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(children: [
+                                      const Icon(Icons.cloud_download,
+                                          color: AXTheme.cyanFlux),
+                                      const SizedBox(width: 10),
+                                      Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text("DIGILOCKER FETCH",
+                                                style: AXTheme.body),
+                                            Text("Recommended • Fastest",
+                                                style: TextStyle(
+                                                    color: Colors.white30,
+                                                    fontSize: 10))
+                                          ])
+                                    ]),
+                                    const Icon(Icons.chevron_right,
+                                        color: Colors.white54)
+                                  ]))),
+                      const SizedBox(height: 20),
+                      Text("SCAN DOCUMENTS (OCR)", style: AXTheme.terminal),
+                      const SizedBox(height: 10),
+                      Row(children: [
+                        Expanded(
+                            child: GestureDetector(
+                                onTap: () => _simulateFetch("OCR_PAN"),
+                                child: _buildScanCard(
+                                    Icons.assignment_ind,
+                                    "SCAN PAN",
+                                    _panScanned))), // REACTIVE COLOR
+                        const SizedBox(width: 10),
+                        Expanded(
+                            child: GestureDetector(
+                                onTap: () => _simulateFetch("OCR_AADHAAR"),
+                                child: _buildScanCard(
+                                    Icons.fingerprint,
+                                    "SCAN AADHAAR",
+                                    _aadhaarScanned))) // REACTIVE COLOR
+                      ]),
+                      const SizedBox(height: 20),
+                      Text("MANUAL ENTRY", style: AXTheme.terminal),
+                      const SizedBox(height: 10),
+                      Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: AXTheme.getPanel(isActive: _kycVerified),
+                          child: Column(children: [
+                            TextField(
+                                controller: panCtrl,
+                                inputFormatters: [
+                                  UpperCaseTextFormatter(),
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp("[A-Z0-9]")),
+                                  LengthLimitingTextInputFormatter(10)
+                                ],
+                                style: AXTheme.body,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                decoration: const InputDecoration(
+                                    labelText: "PAN NUMBER (ABCDE1234F)",
+                                    filled: true,
+                                    fillColor: Colors.black)),
+                            const SizedBox(height: 10),
+                            TextField(
+                                controller: aadhaarCtrl,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(12)
+                                ],
+                                style: AXTheme.body,
+                                decoration: const InputDecoration(
+                                    labelText: "AADHAAR NUMBER (12 Digits)",
+                                    filled: true,
+                                    fillColor: Colors.black)),
+                            const SizedBox(height: 20),
+                            MagicalNeonButton(
+                                text: _kycVerified
+                                    ? "VERIFIED"
+                                    : "VERIFY IDENTITY",
+                                icon: Icons.verified_user,
+                                isDone: _kycVerified,
+                                activeColor: AXTheme.cyanFlux,
+                                onTap: _verifyKYC)
+                          ]))
+                    ])),
+            SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: AXTheme.getPanel(isActive: _bankVerified),
+                          child: Column(children: [
+                            TextField(
+                                controller: accCtrl,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly
+                                ],
+                                style: AXTheme.body,
+                                decoration: const InputDecoration(
+                                    labelText: "ACCOUNT NUMBER",
+                                    filled: true,
+                                    fillColor: Colors.black)),
+                            const SizedBox(height: 10),
+                            TextField(
+                                controller: ifscCtrl,
+                                inputFormatters: [
+                                  UpperCaseTextFormatter(),
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp("[A-Z0-9]")),
+                                  LengthLimitingTextInputFormatter(11)
+                                ],
+                                style: AXTheme.body,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                decoration: const InputDecoration(
+                                    labelText: "IFSC CODE (SBIN000...)",
+                                    filled: true,
+                                    fillColor: Colors.black)),
+                            const SizedBox(height: 20),
+                            MagicalNeonButton(
+                                text: _bankVerified
+                                    ? "VERIFIED"
+                                    : "VERIFY ACCOUNT",
+                                icon: Icons.account_balance,
+                                isDone: _bankVerified,
+                                activeColor: AXTheme.cyanFlux,
+                                onTap: _verifyBank)
+                          ])),
+                      const SizedBox(height: 30),
+                      if (_kycVerified && _bankVerified)
+                        CyberButton(
+                            text: "REQUEST CUSTOMER OTP & PAY",
+                            onTap: _showCustomerOTPDialog)
+                    ]))
+          ]))
+        ]));
+  }
+
+  Widget _buildScanCard(IconData icon, String label, bool isScanned) {
+    return Container(
+        height: 100,
+        decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: isScanned ? AXTheme.success : Colors.white12)),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(isScanned ? Icons.check_circle : icon,
+              color: isScanned ? AXTheme.success : AXTheme.warning),
+          const SizedBox(height: 10),
+          Text(label,
+              style: TextStyle(
+                  color: isScanned ? AXTheme.success : Colors.white54,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold))
+        ]));
+  }
 }
 
 // --- GLOBAL HELPERS (REUSED) ---
