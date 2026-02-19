@@ -1,56 +1,18 @@
 name: aurum_fo
-description: Military Grade Field Officer Terminal for Aurum X.
-publish_to: 'none'
-version: 1.0.0+1
+description: Aurum FO Protocol App
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: '>=3.10.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-
-  # --- 1. UI & ANIMATION (Tactical Look) ---
-  google_fonts: ^6.1.0        # For Cinzel & Montserrat fonts
-  animate_do: ^3.3.2          # For smooth entry animations
-  lottie: ^3.1.0              # For high-quality animations (Success/Processing)
-  flutter_svg: ^2.0.10        # For sharp vector icons
-  cupertino_icons: ^1.0.6
-
-  # --- 2. HARDWARE INTERFACE (The God Eye) ---
-  flutter_blue_plus: ^1.31.0  # To connect Weighing Scale & Printer
-  geolocator: ^11.0.0         # For Live GPS Tracking
-  camera: ^0.10.5+9           # For Body Cam feed & Document Scan
-  sensors_plus: ^5.0.0        # To detect if phone is moving/shaking
-  vibration: ^1.9.0           # Haptic feedback for tactical feel
-
-  # --- 3. SECURITY & COMPLIANCE (Missile Kavach) ---
-  local_auth: ^2.2.0          # Fingerprint/Face ID for Login
-  device_info_plus: ^10.1.0   # To log Device ID (Forensic Audit)
-  screen_protector: ^1.5.1    # To prevent screenshots/recording (Data Leak)
-  flutter_secure_storage: ^9.0.0 # To store Tokens/OTP securely
-
-  # --- 4. BACKEND & LOGIC (The Brain) ---
-  provider: ^6.1.1            # State Management
-  http: ^1.2.0                # Server Communication
-  intl: ^0.19.0               # Date & Currency Formatting
-  connectivity_plus: ^6.0.3   # Check Internet (Siren Logic if offline)
-  
-  # --- 5. UTILITIES ---
-  permission_handler: ^11.3.0 # To ask Camera/Loc permissions cleanly
-  url_launcher: ^6.2.5        # To open Dialler/Maps
-  qr_code_scanner: ^1.0.1     # For scanning Bag QR Codes
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^3.0.0
+  google_fonts: any
+  animate_do: any
+  geolocator: any
+  camera: any
+  local_auth: any
+  url_launcher: any
 
 flutter:
   uses-material-design: true
-  
-  # Assets Declaration (Create these folders later)
-  assets:
-    - assets/images/
-    - assets/animations/
-    - assets/icons/
