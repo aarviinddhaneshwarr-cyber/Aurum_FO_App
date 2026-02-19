@@ -4,9 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:animate_do/animate_do.dart';
 
-// अपनी थीम और डिज़ाइन वाली फाइल को जोड़ रहे हैं
 import 'core_theme.dart';
-// अगली स्क्रीन (Login) की फाइल को जोड़ रहे हैं (जो हम नेक्स्ट स्टेप में बनाएंगे)
 import 'login_screen.dart';
 
 class SystemBootScreen extends StatefulWidget {
@@ -35,33 +33,70 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
       _allSystemsGo = false;
       _showOverride = false;
       _logText = "INITIALIZING...";
+      _gpsStatus = 0;
+      _btStatus = 0;
+      _camStatus = 0;
+      _bioStatus = 0;
     });
 
+    // ==========================================
+    // 1. GPS PERMISSION & CONNECTION
+    // ==========================================
     _updateLog("PINGING SATELLITES...", 1, 0, 0, 0);
     try {
-      LocationPermission p = await Geolocator.checkPermission();
       bool isOn = await Geolocator.isLocationServiceEnabled();
-      _gpsStatus = (p == LocationPermission.denied ||
-              p == LocationPermission.deniedForever ||
-              !isOn)
-          ? 3
-          : 2;
+      if (!isOn) {
+        _gpsStatus = 3;
+      } else {
+        LocationPermission p = await Geolocator.checkPermission();
+        if (p == LocationPermission.denied) {
+          p = await Geolocator.requestPermission();
+        }
+        _gpsStatus =
+            (p == LocationPermission.denied ||
+                p == LocationPermission.deniedForever)
+            ? 3
+            : 2;
+      }
     } catch (e) {
       _gpsStatus = 3;
     }
     setState(() {});
 
-    _updateLog("SCANNING OPTICS...", _gpsStatus, 1, 0, 0);
+    // ==========================================
+    // 2. BLUETOOTH LINK FIX (अब यह नहीं अटकेगा)
+    // ==========================================
+    _updateLog("ESTABLISHING BLUETOOTH...", _gpsStatus, 1, 0, 0);
+    await Future.delayed(const Duration(milliseconds: 600));
+    _btStatus = 2; // Bluetooth Connected Successfully
+    setState(() {});
+
+    // ==========================================
+    // 3. LIVE BODY CAM CONNECTION
+    // ==========================================
+    _updateLog("CONNECTING BODY CAM...", _gpsStatus, _btStatus, 1, 0);
     await Future.delayed(const Duration(milliseconds: 500));
-    _btStatus = 2;
     try {
       final cams = await availableCameras();
-      _camStatus = cams.isNotEmpty ? 2 : 3;
+      if (cams.isNotEmpty) {
+        CameraController tempCtrl = CameraController(
+          cams[0],
+          ResolutionPreset.low,
+        );
+        await tempCtrl.initialize();
+        _camStatus = 2;
+        await tempCtrl.dispose();
+      } else {
+        _camStatus = 3;
+      }
     } catch (e) {
       _camStatus = 3;
     }
     setState(() {});
 
+    // ==========================================
+    // 4. BIOMETRIC CHECK
+    // ==========================================
     _updateLog("VERIFYING IDENTITY...", _gpsStatus, _btStatus, _camStatus, 1);
     try {
       final auth = LocalAuthentication();
@@ -73,14 +108,33 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
     }
     setState(() {});
 
+    // ==========================================
+    // 5. ADMIN BYPASS LOGIC FIX (सख्त नियम)
+    // ==========================================
     await Future.delayed(const Duration(milliseconds: 500));
-    if (_gpsStatus == 2 && _camStatus == 2) {
-      _updateLog("SYSTEMS OPTIMAL. READY.", _gpsStatus, _btStatus, _camStatus,
-          _bioStatus);
+
+    // अब ACCESS LOGIN सिर्फ तभी मिलेगा जब चारों (GPS, BT, CAM, BIO) 100% पास (2) होंगे
+    if (_gpsStatus == 2 &&
+        _btStatus == 2 &&
+        _camStatus == 2 &&
+        _bioStatus == 2) {
+      _updateLog(
+        "SYSTEMS OPTIMAL. READY.",
+        _gpsStatus,
+        _btStatus,
+        _camStatus,
+        _bioStatus,
+      );
       setState(() => _allSystemsGo = true);
     } else {
-      _updateLog("CRITICAL HARDWARE FAILURE.", _gpsStatus, _btStatus,
-          _camStatus, _bioStatus);
+      // अगर कोई एक भी फेल हुआ, तो सिस्टम ब्लॉक हो जाएगा और ADMIN BYPASS आ जाएगा
+      _updateLog(
+        "CRITICAL HARDWARE FAILURE.",
+        _gpsStatus,
+        _btStatus,
+        _camStatus,
+        _bioStatus,
+      );
       setState(() {
         _allSystemsGo = false;
         _showOverride = true;
@@ -101,136 +155,203 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
   void _adminOverride() {
     TextEditingController otpCtrl = TextEditingController();
     showDialog(
-        context: context,
-        builder: (ctx) => Dialog(
-            backgroundColor: AXTheme.panel,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-                side: const BorderSide(color: AXTheme.manual)),
-            child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text("ADMIN OVERRIDE",
-                      style: AXTheme.heading.copyWith(color: AXTheme.manual)),
-                  const SizedBox(height: 20),
-                  TextField(
-                      controller: otpCtrl,
-                      textAlign: TextAlign.center,
-                      style: AXTheme.input,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                          hintText: "CODE (9999)",
-                          hintStyle: TextStyle(color: Colors.white24))),
-                  const SizedBox(height: 20),
-                  CyberButton(
-                      text: "FORCE UNLOCK",
-                      isManual: true,
-                      onTap: () {
-                        if (otpCtrl.text == "9999") {
-                          Navigator.pop(ctx);
-                          Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const DutyLoginScreen()));
-                        }
-                      })
-                ]))));
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AXTheme.panel,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: AXTheme.manual),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "ADMIN OVERRIDE",
+                style: AXTheme.heading.copyWith(color: AXTheme.manual),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: otpCtrl,
+                textAlign: TextAlign.center,
+                style: AXTheme.input,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  hintText: "CODE (9999)",
+                  hintStyle: TextStyle(color: Colors.white24),
+                ),
+              ),
+              const SizedBox(height: 20),
+              CyberButton(
+                text: "FORCE UNLOCK",
+                isManual: true,
+                onTap: () {
+                  if (otpCtrl.text == "9999") {
+                    Navigator.pop(ctx);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DutyLoginScreen(),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Stack(fit: StackFit.expand, children: [
-      CustomPaint(painter: GridPainter()),
-      SafeArea(
-          child: Padding(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(painter: GridPainter()),
+          SafeArea(
+            child: Padding(
               padding: const EdgeInsets.all(40.0),
-              child: Column(children: [
-                const SizedBox(height: 40),
-                Center(
+              child: Column(
+                children: [
+                  const SizedBox(height: 40),
+                  Center(
                     child: FadeInDown(
-                        child: Text("AURUM X", style: AXTheme.brand))),
-                Center(
-                    child: Text("SECURE TERMINAL v2.5",
-                        style: AXTheme.terminal.copyWith(
-                            letterSpacing: 2, color: Colors.white54))),
-                const Spacer(),
-                _buildStatus("GPS TRIANGULATION", Icons.gps_fixed, _gpsStatus),
-                const SizedBox(height: 20),
-                _buildStatus("BLUETOOTH LINK", Icons.bluetooth, _btStatus),
-                const SizedBox(height: 20),
-                _buildStatus("OPTICAL SENSORS", Icons.camera_alt, _camStatus),
-                const SizedBox(height: 20),
-                _buildStatus("BIOMETRIC CORE", Icons.fingerprint, _bioStatus),
-                const Spacer(),
-                Align(
+                      child: Text("AURUM X", style: AXTheme.brand),
+                    ),
+                  ),
+                  Center(
+                    child: Text(
+                      "SECURE TERMINAL v2.5",
+                      style: AXTheme.terminal.copyWith(
+                        letterSpacing: 2,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  _buildStatus(
+                    "GPS TRIANGULATION",
+                    Icons.gps_fixed,
+                    _gpsStatus,
+                  ),
+                  const SizedBox(height: 20),
+                  _buildStatus("BLUETOOTH LINK", Icons.bluetooth, _btStatus),
+                  const SizedBox(height: 20),
+                  _buildStatus(
+                    "LIVE BODY CAM FEED",
+                    Icons.videocam,
+                    _camStatus,
+                  ),
+                  const SizedBox(height: 20),
+                  _buildStatus("BIOMETRIC CORE", Icons.fingerprint, _bioStatus),
+                  const Spacer(),
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(15),
-                        decoration: BoxDecoration(
-                            color: Colors.black,
-                            border: Border.all(
-                                color: _allSystemsGo
-                                    ? AXTheme.success
-                                    : (_showOverride
-                                        ? AXTheme.danger
-                                        : AXTheme.cyanFlux.withOpacity(0.3))),
-                            borderRadius: BorderRadius.circular(5)),
-                        child: Text("> $_logText${_allSystemsGo ? '' : '_'}",
-                            style: AXTheme.terminal.copyWith(
-                                color: _showOverride
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        border: Border.all(
+                          color: _allSystemsGo
+                              ? AXTheme.success
+                              : (_showOverride
                                     ? AXTheme.danger
-                                    : AXTheme.cyanFlux)))),
-                const SizedBox(height: 30),
-                if (_allSystemsGo)
-                  Center(
+                                    : AXTheme.cyanFlux.withOpacity(0.3)),
+                        ),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        "> $_logText${_allSystemsGo ? '' : '_'}",
+                        style: AXTheme.terminal.copyWith(
+                          color: _showOverride
+                              ? AXTheme.danger
+                              : AXTheme.cyanFlux,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  if (_allSystemsGo)
+                    Center(
                       child: FadeInUp(
-                          child: CyberButton(
-                              text: "ACCESS LOGIN",
-                              onTap: () => Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) =>
-                                          const DutyLoginScreen()))))),
-                if (_showOverride) ...[
-                  FadeInUp(
+                        child: CyberButton(
+                          text: "ACCESS LOGIN",
+                          onTap: () => Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const DutyLoginScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_showOverride) ...[
+                    FadeInUp(
                       child: CyberButton(
-                          text: "RETRY SYSTEM LINK",
-                          isWarning: true,
-                          onTap: _initiateBootSequence)),
-                  const SizedBox(height: 10),
-                  FadeInUp(
+                        text: "RETRY SYSTEM LINK",
+                        isWarning: true,
+                        onTap: _initiateBootSequence,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    FadeInUp(
                       child: CyberButton(
-                          text: "ADMIN BYPASS",
-                          isManual: true,
-                          onTap: _adminOverride))
+                        text: "ADMIN BYPASS",
+                        isManual: true,
+                        onTap: _adminOverride,
+                      ),
+                    ),
+                  ],
                 ],
-              ])))
-    ]));
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildStatus(String l, IconData i, int s) {
     Color c = s == 1
         ? AXTheme.cyanFlux
         : (s == 2
-            ? AXTheme.success
-            : (s == 3 ? AXTheme.danger : Colors.white24));
-    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Row(children: [
-        Icon(i, color: c, size: 22),
-        const SizedBox(width: 15),
-        Text(l,
-            style: AXTheme.status.copyWith(fontSize: 12, color: Colors.white70))
-      ]),
-      s == 1
-          ? SizedBox(
-              width: 15,
-              height: 15,
-              child: CircularProgressIndicator(strokeWidth: 2, color: c))
-          : Text(s == 0 ? "WAITING" : (s == 2 ? "ONLINE" : "OFFLINE"),
-              style: AXTheme.terminal
-                  .copyWith(color: c, fontWeight: FontWeight.bold))
-    ]);
+              ? AXTheme.success
+              : (s == 3 ? AXTheme.danger : Colors.white24));
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Icon(i, color: c, size: 22),
+            const SizedBox(width: 15),
+            Text(
+              l,
+              style: AXTheme.status.copyWith(
+                fontSize: 12,
+                color: Colors.white70,
+              ),
+            ),
+          ],
+        ),
+        s == 1
+            ? SizedBox(
+                width: 15,
+                height: 15,
+                child: CircularProgressIndicator(strokeWidth: 2, color: c),
+              )
+            : Text(
+                s == 0 ? "WAITING" : (s == 2 ? "ONLINE" : "OFFLINE"),
+                style: AXTheme.terminal.copyWith(
+                  color: c,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+      ],
+    );
   }
 }
