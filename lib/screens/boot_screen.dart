@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:camera/camera.dart';
 import 'package:local_auth/local_auth.dart';
@@ -18,6 +19,8 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
   int _btStatus = 0;
   int _camStatus = 0;
   int _bioStatus = 0;
+  int _printStatus = 0; // NEW: Printer Status
+
   String _logText = "INITIALIZING TITANIUM KERNEL...";
   bool _allSystemsGo = false;
   bool _showOverride = false;
@@ -37,12 +40,11 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
       _btStatus = 0;
       _camStatus = 0;
       _bioStatus = 0;
+      _printStatus = 0; // Reset Printer
     });
 
-    // ==========================================
-    // 1. GPS PERMISSION & CONNECTION
-    // ==========================================
-    _updateLog("PINGING SATELLITES...", 1, 0, 0, 0);
+    // 1. GPS
+    _updateLog("PINGING SATELLITES...", 1, 0, 0, 0, 0);
     try {
       bool isOn = await Geolocator.isLocationServiceEnabled();
       if (!isOn) {
@@ -63,18 +65,14 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
     }
     setState(() {});
 
-    // ==========================================
-    // 2. BLUETOOTH LINK FIX (अब यह नहीं अटकेगा)
-    // ==========================================
-    _updateLog("ESTABLISHING BLUETOOTH...", _gpsStatus, 1, 0, 0);
+    // 2. BLUETOOTH
+    _updateLog("ESTABLISHING BLUETOOTH...", _gpsStatus, 1, 0, 0, 0);
     await Future.delayed(const Duration(milliseconds: 600));
-    _btStatus = 2; // Bluetooth Connected Successfully
+    _btStatus = 2;
     setState(() {});
 
-    // ==========================================
-    // 3. LIVE BODY CAM CONNECTION
-    // ==========================================
-    _updateLog("CONNECTING BODY CAM...", _gpsStatus, _btStatus, 1, 0);
+    // 3. BODY CAM
+    _updateLog("CONNECTING BODY CAM...", _gpsStatus, _btStatus, 1, 0, 0);
     await Future.delayed(const Duration(milliseconds: 500));
     try {
       final cams = await availableCameras();
@@ -94,10 +92,15 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
     }
     setState(() {});
 
-    // ==========================================
-    // 4. BIOMETRIC CHECK
-    // ==========================================
-    _updateLog("VERIFYING IDENTITY...", _gpsStatus, _btStatus, _camStatus, 1);
+    // 4. BIOMETRIC
+    _updateLog(
+      "VERIFYING IDENTITY...",
+      _gpsStatus,
+      _btStatus,
+      _camStatus,
+      1,
+      0,
+    );
     try {
       final auth = LocalAuthentication();
       bool can =
@@ -108,32 +111,46 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
     }
     setState(() {});
 
-    // ==========================================
-    // 5. ADMIN BYPASS LOGIC FIX (सख्त नियम)
-    // ==========================================
+    // 5. THERMAL PRINTER (NEW)
+    _updateLog(
+      "SYNCING THERMAL PRINTER...",
+      _gpsStatus,
+      _btStatus,
+      _camStatus,
+      _bioStatus,
+      1,
+    );
+    await Future.delayed(
+      const Duration(milliseconds: 800),
+    ); // सिम्युलेट कर रहे हैं प्रिंटर कनेक्शन
+    _printStatus = 2; // ONLINE
+    setState(() {});
+
     await Future.delayed(const Duration(milliseconds: 500));
 
-    // अब ACCESS LOGIN सिर्फ तभी मिलेगा जब चारों (GPS, BT, CAM, BIO) 100% पास (2) होंगे
+    // STRICT CHECK: अब 5 चीज़ें 100% पास (2) होनी चाहिए
     if (_gpsStatus == 2 &&
         _btStatus == 2 &&
         _camStatus == 2 &&
-        _bioStatus == 2) {
+        _bioStatus == 2 &&
+        _printStatus == 2) {
       _updateLog(
         "SYSTEMS OPTIMAL. READY.",
         _gpsStatus,
         _btStatus,
         _camStatus,
         _bioStatus,
+        _printStatus,
       );
       setState(() => _allSystemsGo = true);
     } else {
-      // अगर कोई एक भी फेल हुआ, तो सिस्टम ब्लॉक हो जाएगा और ADMIN BYPASS आ जाएगा
       _updateLog(
         "CRITICAL HARDWARE FAILURE.",
         _gpsStatus,
         _btStatus,
         _camStatus,
         _bioStatus,
+        _printStatus,
       );
       setState(() {
         _allSystemsGo = false;
@@ -142,13 +159,14 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
     }
   }
 
-  void _updateLog(String text, int g, int b, int c, int bi) {
+  void _updateLog(String text, int g, int b, int c, int bi, int p) {
     setState(() {
       _logText = text;
       _gpsStatus = g;
       _btStatus = b;
       _camStatus = c;
       _bioStatus = bi;
+      _printStatus = p;
     });
   }
 
@@ -177,8 +195,12 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
                 textAlign: TextAlign.center,
                 style: AXTheme.input,
                 keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(4),
+                ],
                 decoration: const InputDecoration(
-                  hintText: "CODE (9999)",
+                  hintText: "CODE (4-DIGIT)",
                   hintStyle: TextStyle(color: Colors.white24),
                 ),
               ),
@@ -217,7 +239,7 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
               padding: const EdgeInsets.all(40.0),
               child: Column(
                 children: [
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 20),
                   Center(
                     child: FadeInDown(
                       child: Text("AURUM X", style: AXTheme.brand),
@@ -233,21 +255,27 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
                     ),
                   ),
                   const Spacer(),
+
+                  // HARDWARE STATUS LIST
                   _buildStatus(
                     "GPS TRIANGULATION",
                     Icons.gps_fixed,
                     _gpsStatus,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
                   _buildStatus("BLUETOOTH LINK", Icons.bluetooth, _btStatus),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
                   _buildStatus(
                     "LIVE BODY CAM FEED",
                     Icons.videocam,
                     _camStatus,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
                   _buildStatus("BIOMETRIC CORE", Icons.fingerprint, _bioStatus),
+                  const SizedBox(height: 15),
+                  // NEW PRINTER UI
+                  _buildStatus("THERMAL PRINTER", Icons.print, _printStatus),
+
                   const Spacer(),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -327,12 +355,12 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
       children: [
         Row(
           children: [
-            Icon(i, color: c, size: 22),
+            Icon(i, color: c, size: 20),
             const SizedBox(width: 15),
             Text(
               l,
               style: AXTheme.status.copyWith(
-                fontSize: 12,
+                fontSize: 11,
                 color: Colors.white70,
               ),
             ),
@@ -340,8 +368,8 @@ class _SystemBootScreenState extends State<SystemBootScreen> {
         ),
         s == 1
             ? SizedBox(
-                width: 15,
-                height: 15,
+                width: 12,
+                height: 12,
                 child: CircularProgressIndicator(strokeWidth: 2, color: c),
               )
             : Text(

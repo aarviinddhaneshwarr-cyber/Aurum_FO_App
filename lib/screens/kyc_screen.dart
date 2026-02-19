@@ -1,9 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:animate_do/animate_do.dart'; // Blinking Effect के लिए
 import 'dart:math' as math;
 
 import 'core_theme.dart';
 import 'boot_screen.dart';
+import 'fund_transfer_screen.dart'; // आपका नया Payment System यहाँ लिंक हो गया है!
+
+// ==========================================
+// CUSTOM ADVANCED FORMATTERS (PAN & IFSC)
+// ==========================================
+
+class AdvancedPanFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    String newText = newValue.text.toUpperCase();
+    if (newText.length > 10) return oldValue;
+    for (int i = 0; i < newText.length; i++) {
+      String char = newText[i];
+      if (i < 5 && !RegExp(r'[A-Z]').hasMatch(char)) return oldValue;
+      if (i >= 5 && i < 9 && !RegExp(r'[0-9]').hasMatch(char)) return oldValue;
+      if (i == 9 && !RegExp(r'[A-Z]').hasMatch(char)) return oldValue;
+    }
+    return newValue.copyWith(text: newText);
+  }
+}
+
+class AdvancedIfscFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    String newText = newValue.text.toUpperCase();
+    if (newText.length > 11) return oldValue;
+    for (int i = 0; i < newText.length; i++) {
+      String char = newText[i];
+      if (i < 4 && !RegExp(r'[A-Z]').hasMatch(char)) return oldValue;
+      if (i == 4 && char != '0') return oldValue;
+      if (i > 4 && !RegExp(r'[A-Z0-9]').hasMatch(char)) return oldValue;
+    }
+    return newValue.copyWith(text: newText);
+  }
+}
+
+// ==========================================
+// 9. DYNAMIC KYC STATUS DASHBOARD
+// ==========================================
 
 class KYCStatusDashboard extends StatefulWidget {
   const KYCStatusDashboard({super.key});
@@ -12,8 +58,13 @@ class KYCStatusDashboard extends StatefulWidget {
 }
 
 class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
+  // तीनों का स्टेटस अब डायनामिक है। टेस्टिंग के लिए शुरू में Pending रख रहे हैं।
+  bool _valDone = false;
   bool _kycDone = false;
   bool _bankDone = false;
+
+  int get _completedCount =>
+      (_valDone ? 1 : 0) + (_kycDone ? 1 : 0) + (_bankDone ? 1 : 0);
 
   void _openVerificationHub() {
     Navigator.push(
@@ -30,77 +81,174 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
   }
 
   void _releasePayment() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AXTheme.panel,
-        icon: const Icon(Icons.check_circle, color: AXTheme.success, size: 60),
-        title: Text(
-          "PAYMENT SUCCESSFUL",
-          style: AXTheme.heading.copyWith(color: AXTheme.success),
-        ),
-        content: Text(
-          "Funds Transferred.",
-          style: AXTheme.body,
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const BarcodeScreen()),
-              );
-            },
-            child: const Text(
-              "PRINT BARCODE",
-              style: TextStyle(color: Colors.white),
+    // अब यह सीधे आपकी 3-Tier Payment Screen पर जाएगा (डेटा के साथ)
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const FundTransferScreen(payoutAmount: 485000),
+      ),
+    ); // Dummy amount
+  }
+
+  Future<bool> _onWillPop() async {
+    return (await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AXTheme.panel,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: AXTheme.danger),
             ),
+            title: Text(
+              "WARNING: ABORT TRANSACTION?",
+              style: AXTheme.heading.copyWith(color: AXTheme.danger),
+            ),
+            content: Text(
+              "Going back will cancel the current payout process. Are you sure?",
+              style: AXTheme.body,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text(
+                  "CANCEL",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  "YES, ABORT",
+                  style: TextStyle(color: AXTheme.danger),
+                ),
+              ),
+            ],
           ),
-        ],
+        )) ??
+        false;
+  }
+
+  void _syncServerStatus() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: AXTheme.cyanFlux,
+        content: Text("SYNCING WITH SERVER..."),
+      ),
+    );
+    Future.delayed(const Duration(seconds: 1), () {
+      setState(() {
+        // सिम्युलेट कर रहे हैं कि कस्टमर ने सब कुछ अप्रूव कर दिया
+        _valDone = true;
+        _kycDone = true;
+        _bankDone = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AXTheme.success,
+          content: Text("STATUS UPDATED FROM SERVER!"),
+        ),
+      );
+    });
+  }
+
+  void _resendValuationRequest() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: AXTheme.cyanFlux,
+        content: Text("AGREEMENT RESENT TO CUSTOMER"),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        automaticallyImplyLeading: false,
-        title: Text(
-          "TRANSACTION DASHBOARD",
-          style: AXTheme.heading.copyWith(fontSize: 16),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _buildStatusCard(
-              "IDENTITY (KYC)",
-              _kycDone,
-              () => _openVerificationHub(),
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: AXTheme.cyanFlux),
+            onPressed: () => _onWillPop().then((val) {
+              if (val) Navigator.pop(context);
+            }),
+          ),
+          title: Text(
+            "TRANSACTION DASHBOARD",
+            style: AXTheme.heading.copyWith(fontSize: 14),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.sync, color: AXTheme.cyanFlux),
+              onPressed: _syncServerStatus,
+              tooltip: "Sync Server Status",
             ),
-            const SizedBox(height: 20),
-            _buildStatusCard(
-              "BANKING DETAILS",
-              _bankDone,
-              () => _openVerificationHub(),
-            ),
-            const Spacer(),
-            if (_kycDone && _bankDone)
-              CyberButton(text: "RELEASE PAYMENT", onTap: _releasePayment)
-            else
-              Text("PENDING ACTIONS", style: AXTheme.terminal),
           ],
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  "$_completedCount OF 3 DONE",
+                  style: AXTheme.digital.copyWith(
+                    color: _completedCount == 3
+                        ? AXTheme.success
+                        : AXTheme.warning,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              _buildStatusCard(
+                "CUSTOMER VALUATION",
+                _valDone,
+                _resendValuationRequest,
+                btnText: "RESEND REQUEST",
+                overrideText: "APPROVED & ACCEPTED",
+              ),
+              const SizedBox(height: 15),
+
+              _buildStatusCard(
+                "IDENTITY (KYC)",
+                _kycDone,
+                _openVerificationHub,
+                btnText: "COMPLETE NOW",
+              ),
+              const SizedBox(height: 15),
+
+              _buildStatusCard(
+                "BANKING DETAILS",
+                _bankDone,
+                _openVerificationHub,
+                btnText: "COMPLETE NOW",
+              ),
+              const Spacer(),
+
+              if (_completedCount == 3)
+                CyberButton(
+                  text: "PROCEED TO FUND TRANSFER",
+                  onTap: _releasePayment,
+                )
+              else
+                Text("AWAITING PENDING ACTIONS", style: AXTheme.terminal),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatusCard(String title, bool isDone, VoidCallback onTap) {
+  Widget _buildStatusCard(
+    String title,
+    bool isDone,
+    VoidCallback onTap, {
+    required String btnText,
+    String? overrideText,
+  }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AXTheme.getPanel(isActive: isDone),
@@ -112,7 +260,9 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
             children: [
               Text(title, style: AXTheme.heading.copyWith(fontSize: 14)),
               Text(
-                isDone ? "VERIFIED & SYNCED" : "PENDING - ACTION REQUIRED",
+                isDone
+                    ? (overrideText ?? "VERIFIED & SYNCED")
+                    : "PENDING - ACTION REQUIRED",
                 style: TextStyle(
                   color: isDone ? AXTheme.success : AXTheme.warning,
                   fontSize: 10,
@@ -121,7 +271,11 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
             ],
           ),
           if (!isDone)
-            CyberButton(text: "COMPLETE NOW", onTap: onTap)
+            CyberButton(
+              text: btnText,
+              onTap: onTap,
+              isWarning: title.contains("VALUATION"),
+            )
           else
             const Icon(Icons.check_circle, color: AXTheme.success, size: 30),
         ],
@@ -129,6 +283,10 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
     );
   }
 }
+
+// ==========================================
+// 10. KYC & BANKING ENTRY (NO PAYMENT HERE)
+// ==========================================
 
 class KYCPaymentScreen extends StatefulWidget {
   const KYCPaymentScreen({super.key});
@@ -144,9 +302,6 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
   bool _panScanned = false;
   bool _aadhaarScanned = false;
 
-  final panValidator = RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$');
-  final ifscValidator = RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$');
-
   TextEditingController panCtrl = TextEditingController();
   TextEditingController aadhaarCtrl = TextEditingController();
   TextEditingController accCtrl = TextEditingController();
@@ -156,6 +311,41 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+  }
+
+  Future<bool> _onWillPop() async {
+    return (await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AXTheme.panel,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: AXTheme.warning),
+            ),
+            title: Text(
+              "LEAVE VERIFICATION?",
+              style: AXTheme.heading.copyWith(color: AXTheme.warning),
+            ),
+            content: Text("Unsaved data will be lost.", style: AXTheme.body),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text(
+                  "CANCEL",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  "LEAVE",
+                  style: TextStyle(color: AXTheme.warning),
+                ),
+              ),
+            ],
+          ),
+        )) ??
+        false;
   }
 
   void _simulateFetch(String type) {
@@ -186,8 +376,6 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
         if (type == "DIGILOCKER") {
           panCtrl.text = "ABCDE1234F";
           aadhaarCtrl.text = "123456789012";
-          _panScanned = true;
-          _aadhaarScanned = true;
         } else if (type == "OCR_PAN") {
           panCtrl.text = "ABCDE1234F";
           _panScanned = true;
@@ -206,11 +394,11 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
   }
 
   void _verifyKYC() {
-    if (!panValidator.hasMatch(panCtrl.text)) {
+    if (panCtrl.text.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: AXTheme.danger,
-          content: Text("INVALID PAN FORMAT"),
+          content: Text("PAN MUST BE EXACTLY 10 CHARACTERS"),
         ),
       );
       return;
@@ -219,7 +407,7 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: AXTheme.danger,
-          content: Text("AADHAAR MUST BE 12 DIGITS"),
+          content: Text("AADHAAR MUST BE EXACTLY 12 DIGITS"),
         ),
       );
       return;
@@ -232,16 +420,16 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: AXTheme.danger,
-          content: Text("INVALID ACCOUNT NUMBER"),
+          content: Text("INVALID ACCOUNT NUMBER (MIN 9 DIGITS)"),
         ),
       );
       return;
     }
-    if (!ifscValidator.hasMatch(ifscCtrl.text)) {
+    if (ifscCtrl.text.length != 11) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: AXTheme.danger,
-          content: Text("INVALID IFSC (5th char must be 0)"),
+          content: Text("IFSC MUST BE EXACTLY 11 CHARACTERS"),
         ),
       );
       return;
@@ -249,323 +437,248 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
     setState(() => _bankVerified = true);
   }
 
-  void _showCustomerOTPDialog() {
-    TextEditingController otpCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: AXTheme.panel,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: AXTheme.cyanFlux),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "CUSTOMER AUTHORIZATION",
-                style: AXTheme.heading.copyWith(color: AXTheme.cyanFlux),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                "Ask customer for OTP sent to their mobile to authorize this transaction.",
-                style: AXTheme.body.copyWith(fontSize: 11),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: otpCtrl,
-                textAlign: TextAlign.center,
-                style: AXTheme.input,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  hintText: "ENTER CUSTOMER OTP",
-                  hintStyle: TextStyle(color: Colors.white24),
-                ),
-              ),
-              const SizedBox(height: 20),
-              CyberButton(
-                text: "AUTHORIZE & PAY",
-                onTap: () {
-                  if (otpCtrl.text.length == 4) {
-                    Navigator.pop(ctx);
-                    _processFinalPayment();
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _processFinalPayment() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AXTheme.panel,
-        icon: const Icon(Icons.check_circle, color: AXTheme.success, size: 60),
-        title: Text(
-          "PAYMENT SUCCESSFUL",
-          style: AXTheme.heading.copyWith(color: AXTheme.success),
-        ),
-        content: Text(
-          "Transaction ID: TXN${math.Random().nextInt(999999)}\nFunds Transferred.",
-          style: AXTheme.body,
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context, true);
-            },
-            child: const Text(
-              "PRINT BARCODE",
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AXTheme.cyanFlux),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          "PAYMENT GATEWAY",
-          style: AXTheme.heading.copyWith(fontSize: 16),
-        ),
-      ),
-      body: Column(
-        children: [
-          TabBar(
-            controller: _tabController,
-            indicatorColor: AXTheme.cyanFlux,
-            labelColor: AXTheme.cyanFlux,
-            unselectedLabelColor: Colors.white54,
-            tabs: const [
-              Tab(text: "IDENTITY VAULT"),
-              Tab(text: "BANKING LAYER"),
-            ],
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: AXTheme.cyanFlux),
+            onPressed: () => _onWillPop().then((val) {
+              if (val) Navigator.pop(context);
+            }),
           ),
-          Expanded(
-            child: TabBarView(
+          title: Text(
+            "DATA ENTRY VAULT",
+            style: AXTheme.heading.copyWith(fontSize: 16),
+          ),
+        ),
+        body: Column(
+          children: [
+            TabBar(
               controller: _tabController,
-              children: [
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: () => _simulateFetch("DIGILOCKER"),
-                        child: Container(
-                          padding: const EdgeInsets.all(15),
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.cloud_download,
-                                    color: AXTheme.cyanFlux,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "DIGILOCKER FETCH",
-                                        style: AXTheme.body,
-                                      ),
-                                      const Text(
-                                        "Recommended • Fastest",
-                                        style: TextStyle(
-                                          color: Colors.white30,
-                                          fontSize: 10,
+              indicatorColor: AXTheme.cyanFlux,
+              labelColor: AXTheme.cyanFlux,
+              unselectedLabelColor: Colors.white54,
+              tabs: const [
+                Tab(text: "IDENTITY VAULT"),
+                Tab(text: "BANKING LAYER"),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GestureDetector(
+                          onTap: () => _simulateFetch("DIGILOCKER"),
+                          child: Container(
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white12),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.cloud_download,
+                                      color: AXTheme.cyanFlux,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "DIGILOCKER FETCH",
+                                          style: AXTheme.body,
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                        const Text(
+                                          "Recommended • Fastest",
+                                          style: TextStyle(
+                                            color: Colors.white30,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  color: Colors.white54,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Text("SCAN DOCUMENTS (OCR)", style: AXTheme.terminal),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => _simulateFetch("OCR_PAN"),
+                                child: _buildScanCard(
+                                  Icons.assignment_ind,
+                                  "SCAN PAN",
+                                  _panScanned,
+                                ),
                               ),
-                              const Icon(
-                                Icons.chevron_right,
-                                color: Colors.white54,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => _simulateFetch("OCR_AADHAAR"),
+                                child: _buildScanCard(
+                                  Icons.fingerprint,
+                                  "SCAN AADHAAR",
+                                  _aadhaarScanned,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Text("MANUAL ENTRY", style: AXTheme.terminal),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: AXTheme.getPanel(isActive: _kycVerified),
+                          child: Column(
+                            children: [
+                              TextField(
+                                controller: panCtrl,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                inputFormatters: [AdvancedPanFormatter()],
+                                style: AXTheme.body,
+                                decoration: const InputDecoration(
+                                  labelText: "PAN NUMBER (ABCDE1234F)",
+                                  filled: true,
+                                  fillColor: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: aadhaarCtrl,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(12),
+                                ],
+                                style: AXTheme.body,
+                                decoration: const InputDecoration(
+                                  labelText: "AADHAAR NUMBER (12 Digits)",
+                                  filled: true,
+                                  fillColor: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: MagicalNeonButton(
+                                  text: _kycVerified
+                                      ? "VERIFIED"
+                                      : "VERIFY IDENTITY",
+                                  icon: Icons.verified_user,
+                                  isDone: _kycVerified,
+                                  activeColor: AXTheme.cyanFlux,
+                                  onTap: _verifyKYC,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text("SCAN DOCUMENTS (OCR)", style: AXTheme.terminal),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => _simulateFetch("OCR_PAN"),
-                              child: _buildScanCard(
-                                Icons.assignment_ind,
-                                "SCAN PAN",
-                                _panScanned,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => _simulateFetch("OCR_AADHAAR"),
-                              child: _buildScanCard(
-                                Icons.fingerprint,
-                                "SCAN AADHAAR",
-                                _aadhaarScanned,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Text("MANUAL ENTRY", style: AXTheme.terminal),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: AXTheme.getPanel(isActive: _kycVerified),
-                        child: Column(
-                          children: [
-                            TextField(
-                              controller: panCtrl,
-                              inputFormatters: [
-                                UpperCaseTextFormatter(),
-                                FilteringTextInputFormatter.allow(
-                                  RegExp("[A-Z0-9]"),
-                                ),
-                                LengthLimitingTextInputFormatter(10),
-                              ],
-                              style: AXTheme.body,
-                              textCapitalization: TextCapitalization.characters,
-                              decoration: const InputDecoration(
-                                labelText: "PAN NUMBER (ABCDE1234F)",
-                                filled: true,
-                                fillColor: Colors.black,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            TextField(
-                              controller: aadhaarCtrl,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(12),
-                              ],
-                              style: AXTheme.body,
-                              decoration: const InputDecoration(
-                                labelText: "AADHAAR NUMBER (12 Digits)",
-                                filled: true,
-                                fillColor: Colors.black,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            MagicalNeonButton(
-                              text: _kycVerified
-                                  ? "VERIFIED"
-                                  : "VERIFY IDENTITY",
-                              icon: Icons.verified_user,
-                              isDone: _kycVerified,
-                              activeColor: AXTheme.cyanFlux,
-                              onTap: _verifyKYC,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: AXTheme.getPanel(isActive: _bankVerified),
-                        child: Column(
-                          children: [
-                            TextField(
-                              controller: accCtrl,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              style: AXTheme.body,
-                              decoration: const InputDecoration(
-                                labelText: "ACCOUNT NUMBER",
-                                filled: true,
-                                fillColor: Colors.black,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            TextField(
-                              controller: ifscCtrl,
-                              inputFormatters: [
-                                UpperCaseTextFormatter(),
-                                FilteringTextInputFormatter.allow(
-                                  RegExp("[A-Z0-9]"),
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: AXTheme.getPanel(isActive: _bankVerified),
+                          child: Column(
+                            children: [
+                              TextField(
+                                controller: accCtrl,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(18),
+                                ],
+                                style: AXTheme.body,
+                                decoration: const InputDecoration(
+                                  labelText: "ACCOUNT NUMBER",
+                                  filled: true,
+                                  fillColor: Colors.black,
                                 ),
-                                LengthLimitingTextInputFormatter(11),
-                              ],
-                              style: AXTheme.body,
-                              textCapitalization: TextCapitalization.characters,
-                              decoration: const InputDecoration(
-                                labelText: "IFSC CODE (SBIN000...)",
-                                filled: true,
-                                fillColor: Colors.black,
                               ),
-                            ),
-                            const SizedBox(height: 20),
-                            MagicalNeonButton(
-                              text: _bankVerified
-                                  ? "VERIFIED"
-                                  : "VERIFY ACCOUNT",
-                              icon: Icons.account_balance,
-                              isDone: _bankVerified,
-                              activeColor: AXTheme.cyanFlux,
-                              onTap: _verifyBank,
-                            ),
-                          ],
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: ifscCtrl,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                inputFormatters: [AdvancedIfscFormatter()],
+                                style: AXTheme.body,
+                                decoration: const InputDecoration(
+                                  labelText: "IFSC CODE (SBIN000...)",
+                                  filled: true,
+                                  fillColor: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: MagicalNeonButton(
+                                  text: _bankVerified
+                                      ? "VERIFIED"
+                                      : "VERIFY ACCOUNT",
+                                  icon: Icons.account_balance,
+                                  isDone: _bankVerified,
+                                  activeColor: AXTheme.cyanFlux,
+                                  onTap: _verifyBank,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 30),
-                      if (_kycVerified && _bankVerified)
-                        CyberButton(
-                          text: "REQUEST CUSTOMER OTP & PAY",
-                          onTap: _showCustomerOTPDialog,
-                        ),
-                    ],
+                        const SizedBox(height: 30),
+                        if (_kycVerified && _bankVerified)
+                          CyberButton(
+                            text: "SAVE & SYNC DETAILS",
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: AXTheme.success,
+                                  content: Text("DETAILS SYNCED TO SERVER"),
+                                ),
+                              );
+                              Navigator.pop(context, true);
+                            },
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -600,6 +713,10 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
   }
 }
 
+// ==========================================
+// 11. BARCODE & LOCKER SCREEN (PRINTER FIX)
+// ==========================================
+
 class BarcodeScreen extends StatefulWidget {
   const BarcodeScreen({super.key});
   @override
@@ -608,11 +725,31 @@ class BarcodeScreen extends StatefulWidget {
 
 class _BarcodeScreenState extends State<BarcodeScreen> {
   int _step = 0;
+  bool _isPrinted = false; // Barcode Printer Flag
   TextEditingController otpCtrl = TextEditingController();
   List<Offset?> _signPoints = [];
 
   void _nextStep() {
     setState(() => _step++);
+  }
+
+  void _printBarcode() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: AXTheme.cyanFlux,
+        content: Text("SENDING COMMAND TO THERMAL PRINTER..."),
+      ),
+    );
+
+    Future.delayed(const Duration(seconds: 2), () {
+      setState(() => _isPrinted = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AXTheme.success,
+          content: Text("BARCODE PRINTED SUCCESSFULLY"),
+        ),
+      );
+    });
   }
 
   @override
@@ -630,18 +767,88 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // ==========================================
+            // BARCODE PRINTING STEP
+            // ==========================================
             if (_step == 0) ...[
-              const Icon(Icons.qr_code_2, size: 100, color: Colors.white),
-              const SizedBox(height: 20),
+              const Icon(Icons.qr_code_2, size: 80, color: Colors.white),
+              const SizedBox(height: 10),
               Text(
                 "AURUM-X-9988",
                 style: AXTheme.digital.copyWith(fontSize: 24),
               ),
-              const SizedBox(height: 10),
-              Text("Print & Paste on Pouch", style: AXTheme.body),
-              const SizedBox(height: 40),
-              CyberButton(text: "BARCODE PASTED >", onTap: _nextStep),
+              const SizedBox(height: 15),
+
+              // DETAILED RECEIPT INFO
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("TXN ID: AX-9988-ABC", style: AXTheme.terminal),
+                    const Divider(color: Colors.white12),
+                    Text(
+                      "FO OFFICER: Aarviind (ID: 1042)",
+                      style: AXTheme.body.copyWith(fontSize: 11),
+                    ),
+                    Text(
+                      "CUSTOMER: John Doe",
+                      style: AXTheme.body.copyWith(fontSize: 11),
+                    ),
+                    Text(
+                      "VALUATION: AUTO SYNC",
+                      style: AXTheme.body.copyWith(fontSize: 11),
+                    ),
+                    Text(
+                      "ASSET: 26.00g @ 23.1K",
+                      style: AXTheme.body.copyWith(fontSize: 11),
+                    ),
+                    Text(
+                      "TIMESTAMP: 2026-02-20 03:51 AM IST",
+                      style: AXTheme.body.copyWith(fontSize: 11),
+                    ),
+                    Text(
+                      "LOC: NAVI MUMBAI, MH, INDIA",
+                      style: AXTheme.body.copyWith(fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // BLINKING TEXT (Jab tak print nahi hota)
+              Pulse(
+                infinite: !_isPrinted, // Stops blinking once printed
+                child: Text(
+                  "Print & Paste Barcode on Pouch",
+                  style: AXTheme.body.copyWith(
+                    color: _isPrinted ? AXTheme.success : AXTheme.warning,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // DYNAMIC PRINT BUTTON
+              if (!_isPrinted)
+                CyberButton(text: "PRINT BARCODE", onTap: _printBarcode)
+              else
+                CyberButton(
+                  text: "BARCODE PASTED >",
+                  onTap: _nextStep,
+                  isManual: true,
+                ), // Proceeds to locker
             ],
+
+            // ==========================================
+            // LOCKER STEP
+            // ==========================================
             if (_step == 1) ...[
               const Icon(Icons.lock_open, size: 80, color: AXTheme.cyanFlux),
               const SizedBox(height: 20),
@@ -652,6 +859,10 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                 textAlign: TextAlign.center,
                 style: AXTheme.input,
                 keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(4),
+                ],
                 decoration: const InputDecoration(
                   hintText: "ENTER LOCKER OTP",
                   hintStyle: TextStyle(color: Colors.white24),
@@ -674,6 +885,10 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                 },
               ),
             ],
+
+            // ==========================================
+            // FINAL CLOSURE STEP
+            // ==========================================
             if (_step == 2) ...[
               Text("CONFIRM LOCKER CLOSURE", style: AXTheme.heading),
               const SizedBox(height: 20),
@@ -702,7 +917,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () => setState(() => _signPoints = []),
-                  child: Text(
+                  child: const Text(
                     "CLEAR",
                     style: TextStyle(color: AXTheme.danger, fontSize: 10),
                   ),
