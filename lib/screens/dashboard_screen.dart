@@ -3,7 +3,7 @@ import 'package:animate_do/animate_do.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' as math;
 
-// अपनी थीम और बाकी स्क्रीन्स को जोड़ रहे हैं
+// Themes and Screens
 import 'core_theme.dart';
 import 'valuation_screen.dart';
 import 'ledger_screen.dart';
@@ -104,15 +104,18 @@ class _RadarDashboardScreenState extends State<RadarDashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // FORCE BACKGROUND COLOR HERE
+      backgroundColor: AXTheme.bg,
+
       // ==========================================
-      // NEW: SLIDING NAVIGATION DRAWER (MENU)
+      // SLIDING NAVIGATION DRAWER (MENU)
       // ==========================================
       drawer: Drawer(
-        backgroundColor: Colors.black,
+        backgroundColor: AXTheme.bg,
         child: Container(
-          decoration: BoxDecoration(
-            border: const Border(
-              right: BorderSide(color: AXTheme.cyanFlux, width: 2),
+          decoration: const BoxDecoration(
+            border: Border(
+              right: BorderSide(color: AXTheme.cyanFlux, width: 1.5),
             ),
           ),
           child: ListView(
@@ -142,7 +145,7 @@ class _RadarDashboardScreenState extends State<RadarDashboardScreen>
                 ),
               ),
               _buildDrawerItem(Icons.inventory, "FO PROFILE & HANDOVER", () {
-                Navigator.pop(context); // Close Drawer
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -174,7 +177,7 @@ class _RadarDashboardScreenState extends State<RadarDashboardScreen>
       ),
 
       // ==========================================
-      // EXISTING COCKPIT UI (UNCHANGED)
+      // RADAR COCKPIT UI
       // ==========================================
       body: Stack(
         fit: StackFit.expand,
@@ -187,13 +190,12 @@ class _RadarDashboardScreenState extends State<RadarDashboardScreen>
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 10,
-                  ), // Thoda adjust kiya taaki Menu icon fit ho
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          // NEW MENU BUTTON TO OPEN DRAWER
                           Builder(
                             builder: (context) => IconButton(
                               icon: const Icon(
