@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
+import 'dart:math' as math; // Used for math.min in Formatter
 
 import 'core_theme.dart';
 import 'boot_screen.dart';
 import 'fund_transfer_screen.dart';
+
+// ==========================================
+// 1. CUSTOM ADVANCED FORMATTERS (LAG-FREE FIX)
+// ==========================================
 
 class AdvancedPanFormatter extends TextInputFormatter {
   @override
@@ -14,13 +19,26 @@ class AdvancedPanFormatter extends TextInputFormatter {
   ) {
     String newText = newValue.text.toUpperCase();
     if (newText.length > 10) return oldValue;
-    for (int i = 0; i < newText.length; i++) {
-      String char = newText[i];
-      if (i < 5 && !RegExp(r'[A-Z]').hasMatch(char)) return oldValue;
-      if (i >= 5 && i < 9 && !RegExp(r'[0-9]').hasMatch(char)) return oldValue;
-      if (i == 9 && !RegExp(r'[A-Z]').hasMatch(char)) return oldValue;
+
+    // Fast Regex Matching to prevent Lag
+    String pattern = r'^';
+    if (newText.isNotEmpty) pattern += r'[A-Z]{1,5}';
+    if (newText.length > 5) pattern = r'^[A-Z]{5}[0-9]{1,4}';
+    if (newText.length > 9) pattern = r'^[A-Z]{5}[0-9]{4}[A-Z]{1}';
+    pattern += r'$';
+
+    if (newText.isNotEmpty && !RegExp(pattern).hasMatch(newText)) {
+      return oldValue;
     }
-    return newValue.copyWith(text: newText);
+
+    // Preserve Cursor Position to prevent jumping
+    return TextEditingValue(
+      text: newText,
+      selection: newValue.selection.copyWith(
+        baseOffset: math.min(newValue.selection.start, newText.length),
+        extentOffset: math.min(newValue.selection.end, newText.length),
+      ),
+    );
   }
 }
 
@@ -32,18 +50,29 @@ class AdvancedIfscFormatter extends TextInputFormatter {
   ) {
     String newText = newValue.text.toUpperCase();
     if (newText.length > 11) return oldValue;
-    for (int i = 0; i < newText.length; i++) {
-      String char = newText[i];
-      if (i < 4 && !RegExp(r'[A-Z]').hasMatch(char)) return oldValue;
-      if (i == 4 && char != '0') return oldValue;
-      if (i > 4 && !RegExp(r'[A-Z0-9]').hasMatch(char)) return oldValue;
+
+    String pattern = r'^';
+    if (newText.isNotEmpty) pattern += r'[A-Z]{1,4}';
+    if (newText.length > 4) pattern = r'^[A-Z]{4}0'; // 5th character MUST be 0
+    if (newText.length > 5) pattern = r'^[A-Z]{4}0[A-Z0-9]{1,6}';
+    pattern += r'$';
+
+    if (newText.isNotEmpty && !RegExp(pattern).hasMatch(newText)) {
+      return oldValue;
     }
-    return newValue.copyWith(text: newText);
+
+    return TextEditingValue(
+      text: newText,
+      selection: newValue.selection.copyWith(
+        baseOffset: math.min(newValue.selection.start, newText.length),
+        extentOffset: math.min(newValue.selection.end, newText.length),
+      ),
+    );
   }
 }
 
 // ==========================================
-// 9. THE TRUE DYNAMIC DASHBOARD (SPLIT SIMULATOR)
+// 2. THE TRUE DYNAMIC DASHBOARD
 // ==========================================
 
 class KYCStatusDashboard extends StatefulWidget {
@@ -62,7 +91,6 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
       (_kycStatus.contains("COMPLETED") ? 1 : 0) +
       (_bankStatus.contains("COMPLETED") ? 1 : 0);
 
-  // --- DEVELOPER SCENARIO SIMULATOR (UPDATED) ---
   void _setScenario(String action) {
     setState(() {
       if (action == "WAIT") {
@@ -84,10 +112,13 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
       context,
       MaterialPageRoute(builder: (_) => const KYCPaymentScreen()),
     ).then((val) {
-      if (val == true) {
+      // DYNAMIC UPDATE FIX: Only mark what was actually verified
+      if (val != null && val is Map) {
         setState(() {
-          if (_kycStatus == "PENDING_FO") _kycStatus = "COMPLETED_FO";
-          if (_bankStatus == "PENDING_FO") _bankStatus = "COMPLETED_FO";
+          if (val['kyc'] == true && _kycStatus == "PENDING_FO")
+            _kycStatus = "COMPLETED_FO";
+          if (val['bank'] == true && _bankStatus == "PENDING_FO")
+            _bankStatus = "COMPLETED_FO";
         });
       }
     });
@@ -149,7 +180,6 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              // --- SCENARIO SIMULATOR (SPLIT FIX) ---
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -231,7 +261,6 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
               ),
               const SizedBox(height: 10),
 
-              // 1. VALUATION CARD
               _buildDynamicCard("CUSTOMER VALUATION", _valStatus, () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("PING SENT TO CUSTOMER APP")),
@@ -239,7 +268,6 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
               }, true),
               const SizedBox(height: 15),
 
-              // 2. KYC CARD
               _buildDynamicCard(
                 "IDENTITY (KYC)",
                 _kycStatus,
@@ -248,7 +276,6 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
               ),
               const SizedBox(height: 15),
 
-              // 3. BANK CARD
               _buildDynamicCard(
                 "BANKING DETAILS",
                 _bankStatus,
@@ -258,7 +285,6 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
 
               const Spacer(),
 
-              // FINAL PAYMENT BUTTON
               if (_completedCount == 3)
                 CyberButton(
                   text: "PROCEED TO FUND TRANSFER",
@@ -372,7 +398,7 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
 }
 
 // ==========================================
-// 10. KYC & BANKING ENTRY
+// 3. KYC & BANKING ENTRY (INDEPENDENT SAVE FIX)
 // ==========================================
 
 class KYCPaymentScreen extends StatefulWidget {
@@ -398,6 +424,53 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+  }
+
+  void _simulateFetch(String type) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AXTheme.panel,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: AXTheme.cyanFlux),
+              const SizedBox(height: 20),
+              Text("FETCHING $type DATA...", style: AXTheme.body),
+            ],
+          ),
+        ),
+      ),
+    );
+    Future.delayed(const Duration(seconds: 3), () {
+      Navigator.pop(context);
+      setState(() {
+        if (type == "DIGILOCKER") {
+          panCtrl.text = "ABCDE1234F";
+          aadhaarCtrl.text = "123456789012";
+          _panScanned = true;
+          _aadhaarScanned = true;
+        } else if (type == "OCR_PAN") {
+          panCtrl.text = "ABCDE1234F";
+          _panScanned = true;
+        } else if (type == "OCR_AADHAAR") {
+          aadhaarCtrl.text = "123456789012";
+          _aadhaarScanned = true;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AXTheme.success,
+          content: Text("DATA FETCHED SUCCESSFULLY"),
+        ),
+      );
+    });
   }
 
   void _verifyKYC() {
@@ -440,11 +513,87 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
+                // --- KYC TAB ---
                 SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      GestureDetector(
+                        onTap: () => _simulateFetch("DIGILOCKER"),
+                        child: Container(
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.cloud_download,
+                                    color: AXTheme.cyanFlux,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "DIGILOCKER FETCH",
+                                        style: AXTheme.body,
+                                      ),
+                                      const Text(
+                                        "Recommended • Fastest",
+                                        style: TextStyle(
+                                          color: Colors.white30,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const Icon(
+                                Icons.chevron_right,
+                                color: Colors.white54,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text("SCAN DOCUMENTS (OCR)", style: AXTheme.terminal),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _simulateFetch("OCR_PAN"),
+                              child: _buildScanCard(
+                                Icons.assignment_ind,
+                                "SCAN PAN",
+                                _panScanned,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _simulateFetch("OCR_AADHAAR"),
+                              child: _buildScanCard(
+                                Icons.fingerprint,
+                                "SCAN AADHAAR",
+                                _aadhaarScanned,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
                       Text("MANUAL ENTRY", style: AXTheme.terminal),
                       const SizedBox(height: 10),
                       Container(
@@ -494,9 +643,29 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
                           ],
                         ),
                       ),
+                      const SizedBox(height: 30),
+                      // FIX: Save button appears if AT LEAST ONE is verified
+                      if (_kycVerified || _bankVerified)
+                        CyberButton(
+                          text: "SAVE & SYNC DETAILS",
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                backgroundColor: AXTheme.success,
+                                content: Text("DETAILS SYNCED TO SERVER"),
+                              ),
+                            );
+                            Navigator.pop(context, {
+                              'kyc': _kycVerified,
+                              'bank': _bankVerified,
+                            });
+                          },
+                        ),
                     ],
                   ),
                 ),
+
+                // --- BANKING TAB ---
                 SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -550,11 +719,21 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
                         ),
                       ),
                       const SizedBox(height: 30),
-                      if (_kycVerified && _bankVerified)
+                      // FIX: Save button appears if AT LEAST ONE is verified
+                      if (_kycVerified || _bankVerified)
                         CyberButton(
                           text: "SAVE & SYNC DETAILS",
                           onTap: () {
-                            Navigator.pop(context, true);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                backgroundColor: AXTheme.success,
+                                content: Text("DETAILS SYNCED TO SERVER"),
+                              ),
+                            );
+                            Navigator.pop(context, {
+                              'kyc': _kycVerified,
+                              'bank': _bankVerified,
+                            });
                           },
                         ),
                     ],
@@ -567,10 +746,39 @@ class _KYCPaymentScreenState extends State<KYCPaymentScreen>
       ),
     );
   }
+
+  Widget _buildScanCard(IconData icon, String label, bool isScanned) {
+    return Container(
+      height: 100,
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: isScanned ? AXTheme.success : Colors.white12),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isScanned ? Icons.check_circle : icon,
+            color: isScanned ? AXTheme.success : AXTheme.warning,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: TextStyle(
+              color: isScanned ? AXTheme.success : Colors.white54,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ==========================================
-// CUSTOM BLINKING TEXT
+// 4. CUSTOM BLINKING TEXT
 // ==========================================
 class BlinkingWarningText extends StatefulWidget {
   final String text;
@@ -619,7 +827,7 @@ class _BlinkingWarningTextState extends State<BlinkingWarningText>
 }
 
 // ==========================================
-// 11. BARCODE & LOCKER SCREEN
+// 5. BARCODE & LOCKER SCREEN
 // ==========================================
 
 class BarcodeScreen extends StatefulWidget {
@@ -963,7 +1171,6 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                     );
                     return;
                   }
-                  // Vault Lock hote hi FO ka ek pura task complete. Wapas boot/login screen par.
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (_) => const SystemBootScreen()),
