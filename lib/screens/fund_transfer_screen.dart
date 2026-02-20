@@ -4,7 +4,6 @@ import 'package:animate_do/animate_do.dart';
 import 'dart:math' as math;
 
 import 'core_theme.dart';
-// Barcode स्क्रीन पर जाने के लिए kyc_screen को इम्पोर्ट कर रहे हैं
 import 'kyc_screen.dart';
 
 class FundTransferScreen extends StatefulWidget {
@@ -16,17 +15,14 @@ class FundTransferScreen extends StatefulWidget {
 }
 
 class _FundTransferScreenState extends State<FundTransferScreen> {
-  int _step = 0; // 0: Init, 1: Waiting Approval, 2: Enter OTP, 3: Success
+  int _step = 0;
   final TextEditingController _otp1Ctrl = TextEditingController();
   final TextEditingController _otp2Ctrl = TextEditingController();
 
-  // ==========================================
-  // 3-TIER AUTHORIZATION LOGIC
-  // ==========================================
   String get _authTier {
-    if (widget.payoutAmount <= 300000) return "FO_TIER"; // 0 - 3 Lakh
-    if (widget.payoutAmount <= 1200000) return "ADMIN_TIER"; // 3L - 12 Lakh
-    return "CFO_TIER"; // 12L - 90 Lakh
+    if (widget.payoutAmount <= 300000) return "FO_TIER";
+    if (widget.payoutAmount <= 1200000) return "ADMIN_TIER";
+    return "CFO_TIER";
   }
 
   String get _tierTitle {
@@ -37,12 +33,10 @@ class _FundTransferScreenState extends State<FundTransferScreen> {
 
   void _requestApproval() {
     setState(() => _step = 1);
-
     int delay = _authTier == "FO_TIER"
         ? 1
         : (_authTier == "ADMIN_TIER" ? 3 : 4);
 
-    // सिम्युलेट कर रहे हैं कि सर्वर से अप्रूवल आ रहा है
     Future.delayed(Duration(seconds: delay), () {
       setState(() => _step = 2);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -68,7 +62,7 @@ class _FundTransferScreenState extends State<FundTransferScreen> {
     }
 
     if (isSuccess) {
-      setState(() => _step = 3); // Move to Success State
+      setState(() => _step = 3);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -87,7 +81,6 @@ class _FundTransferScreenState extends State<FundTransferScreen> {
         leading: _step == 3
             ? const SizedBox()
             : IconButton(
-                // Success के बाद Back बटन गायब
                 icon: const Icon(Icons.arrow_back_ios, color: AXTheme.cyanFlux),
                 onPressed: () => Navigator.pop(context),
               ),
@@ -100,7 +93,6 @@ class _FundTransferScreenState extends State<FundTransferScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // AMOUNT DISPLAY CARD
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -149,7 +141,6 @@ class _FundTransferScreenState extends State<FundTransferScreen> {
             ),
             const SizedBox(height: 30),
 
-            // STEP 0: REQUEST BUTTON
             if (_step == 0) ...[
               const Spacer(),
               const Icon(Icons.security, size: 80, color: Colors.white24),
@@ -168,7 +159,6 @@ class _FundTransferScreenState extends State<FundTransferScreen> {
               ),
             ],
 
-            // STEP 1: WAITING LOADER
             if (_step == 1) ...[
               const Spacer(),
               const CircularProgressIndicator(color: AXTheme.cyanFlux),
@@ -182,7 +172,6 @@ class _FundTransferScreenState extends State<FundTransferScreen> {
               const Spacer(),
             ],
 
-            // STEP 2: OTP ENTRY
             if (_step == 2) ...[
               FadeInUp(
                 child: Column(
@@ -211,7 +200,6 @@ class _FundTransferScreenState extends State<FundTransferScreen> {
               ),
             ],
 
-            // STEP 3: PAYMENT SUCCESS & PRINT BARCODE (Magical Button)
             if (_step == 3) ...[
               Expanded(
                 child: FadeIn(
@@ -239,21 +227,23 @@ class _FundTransferScreenState extends State<FundTransferScreen> {
                       ),
                       const SizedBox(height: 40),
 
-                      // जादुई प्रिंट बारकोड बटन
-                      MagicalNeonButton(
-                        text: "PRINT BARCODE",
-                        icon: Icons.print,
-                        isDone: false,
-                        activeColor: AXTheme.cyanFlux,
-                        onTap: () {
-                          // Barcode Screen पर भेज रहे हैं
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const BarcodeScreen(),
-                            ),
-                          );
-                        },
+                      // FULL WIDTH MAGICAL BUTTON FIX (SS#3)
+                      SizedBox(
+                        width: double.infinity,
+                        child: MagicalNeonButton(
+                          text: "PRINT BARCODE",
+                          icon: Icons.print,
+                          isDone: false,
+                          activeColor: AXTheme.cyanFlux,
+                          onTap: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const BarcodeScreen(),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
