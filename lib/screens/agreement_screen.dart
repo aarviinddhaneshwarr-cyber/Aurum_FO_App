@@ -262,9 +262,7 @@ class _AgreementScreenState extends State<AgreementScreen> {
                         onTap: _showNegotiationDialog,
                         child: Text(
                           "Aurum Charges (${_chargePercent.toStringAsFixed(1)}%)",
-                          style: AXTheme.body.copyWith(
-                            decoration: TextDecoration.underline,
-                          ),
+                          style: AXTheme.body,
                         ),
                       ),
                       Text(

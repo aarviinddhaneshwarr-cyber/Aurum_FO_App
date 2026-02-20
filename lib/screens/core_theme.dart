@@ -3,14 +3,14 @@ import 'package:flutter/services.dart';
 import 'dart:math' as math;
 
 // ==========================================
-// AURUM X: ULTRA LUXURY DARK CERAMIC THEME (100% CONSISTENT)
+// AURUM X: ULTRA LUXURY DARK CERAMIC (100% CONSISTENT)
 // ==========================================
 class AXTheme {
-  // 1. BACKGROUND & PANELS (Deep Titanium Ceramic)
-  static const Color bg = Color(0xFF0D0F12); // Deepest OLED-style Slate
+  // 1. BACKGROUND (Deepest OLED Slate matching your Dashboard & Vault images)
+  static const Color bg = Color(0xFF0B0D10);
   static const Color panel = Color(
-    0xFF15181D,
-  ); // Slightly elevated Ceramic Surface
+    0xFF13161A,
+  ); // Slightly raised Ceramic Surface
 
   // 2. THE STRICT COLOR PALETTE
   static const Color primaryText = Color(0xFFFFFFFF); // Pure Crisp White
@@ -19,15 +19,13 @@ class AXTheme {
   // The Core Identifiers
   static const Color goldFlux = Color(
     0xFFFFD700,
-  ); // Pure Aurum Gold (Auto-Sync/Common)
+  ); // Pure Aurum Gold (Values/Auto-Sync)
   static const Color manual = Color(
     0xFFF8F9FA,
   ); // Platinum White (Manual Entry)
 
-  // The Magic Energy
+  // The Magic Energy & Status
   static const Color cyanFlux = Color(0xFF00E5FF);
-
-  // Strict Status Colors
   static const Color success = Color(0xFF00E676);
   static const Color danger = Color(0xFFFF1744);
   static const Color warning = Color(0xFFFF9100);
@@ -37,13 +35,16 @@ class AXTheme {
   static const Color mutedGold = goldFlux;
   static const Color textMain = primaryText;
 
-  // 3. THE ONE UNIFIED BORDER (Absolute Consistency)
-  // Used everywhere: Panels, Buttons, Inputs. Exactly 1px thick.
-  static Color subtleBorder = Colors.white.withOpacity(0.06);
+  // 3. 👑 THE "ONE BORDER RULE" (Absolute Consistency) 👑
+  // Every single panel, input, and button will use THIS exact border.
+  static Border get unifiedBorder =>
+      Border.all(color: Colors.white.withOpacity(0.06), width: 1.0);
 
-  // PREMIUM SHADOWS (Soft, Wide, Ceramic Depth)
-  static const Color lightShadow = Color(0x08FFFFFF); // Ultra faint light
-  static const Color darkShadow = Color(0x80000000); // Deep bottom shadow
+  // PREMIUM SHADOWS (Soft, Wide, OLED Depth)
+  static const Color lightShadow = Color(
+    0x06FFFFFF,
+  ); // 3.5% White (Ultra faint)
+  static const Color darkShadow = Color(0x80000000); // 50% Black
 
   // 4. LUXURY PANELS
   static BoxDecoration getPanel({
@@ -52,27 +53,25 @@ class AXTheme {
   }) {
     return BoxDecoration(
       color: panel,
-      borderRadius: BorderRadius.circular(20),
-      // CONSISTENT BORDER RULE
-      border: Border.all(color: subtleBorder, width: 1.0),
+      borderRadius: BorderRadius.circular(16),
+      border: unifiedBorder, // STRICT CONSISTENCY
       boxShadow: const [
-        BoxShadow(color: lightShadow, offset: Offset(-5, -5), blurRadius: 12),
-        BoxShadow(color: darkShadow, offset: Offset(5, 5), blurRadius: 15),
+        BoxShadow(color: lightShadow, offset: Offset(-4, -4), blurRadius: 10),
+        BoxShadow(color: darkShadow, offset: Offset(4, 4), blurRadius: 12),
       ],
     );
   }
 
-  // The Clean Dent (For Input Fields)
+  // The Clean Dent (For Input Fields - exactly like your 'Auto Valuation' image)
   static BoxDecoration getInsetPanel() {
     return BoxDecoration(
-      color: const Color(0xFF0A0C0F), // Darker core
-      borderRadius: BorderRadius.circular(12),
-      // CONSISTENT BORDER RULE
-      border: Border.all(color: subtleBorder, width: 1.0),
+      color: const Color(0xFF07080A), // Very dark core for inputs
+      borderRadius: BorderRadius.circular(10),
+      border: unifiedBorder, // STRICT CONSISTENCY
     );
   }
 
-  // 5. TYPOGRAPHY (ULTRA CRISP - ZERO BLUR)
+  // 5. TYPOGRAPHY (CRISP - ZERO BLUR EVERYWHERE)
   static const TextStyle brand = TextStyle(
     fontFamily: 'Orbitron',
     fontWeight: FontWeight.bold,
@@ -101,7 +100,7 @@ class AXTheme {
     color: primaryText,
   );
 
-  // Value & Inputs ALWAYS use GoldFlux for Consistency
+  // Values ALWAYS use GoldFlux
   static const TextStyle value = TextStyle(
     fontFamily: 'Rajdhani',
     fontWeight: FontWeight.bold,
@@ -114,7 +113,6 @@ class AXTheme {
     letterSpacing: 2,
   );
 
-  // Digital Displays (Crisp Gold)
   static TextStyle get digital => const TextStyle(
     fontFamily: 'ShareTechMono',
     color: goldFlux,
@@ -150,7 +148,7 @@ class GridPainter extends CustomPainter {
 }
 
 // ==========================================
-// 3D CYBER BUTTON (CONSISTENT BORDER & CLEAN SNAP)
+// 3D CYBER BUTTON (CONSISTENT LUXURY)
 // ==========================================
 class CyberButton extends StatefulWidget {
   final String text;
@@ -196,21 +194,20 @@ class _CyberButtonState extends State<CyberButton> {
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           decoration: BoxDecoration(
             color: AXTheme.panel,
-            borderRadius: BorderRadius.circular(16),
-            // STRICT CONSISTENCY: 1px subtle border
-            border: Border.all(color: AXTheme.subtleBorder, width: 1.0),
+            borderRadius: BorderRadius.circular(12),
+            border: AXTheme.unifiedBorder, // STRICT CONSISTENCY
             boxShadow: _pressed || isDisabled
                 ? []
                 : const [
                     BoxShadow(
                       color: AXTheme.lightShadow,
-                      offset: Offset(-4, -4),
-                      blurRadius: 10,
+                      offset: Offset(-3, -3),
+                      blurRadius: 8,
                     ),
                     BoxShadow(
                       color: AXTheme.darkShadow,
                       offset: Offset(4, 4),
-                      blurRadius: 12,
+                      blurRadius: 10,
                     ),
                   ],
           ),
@@ -233,7 +230,7 @@ class _CyberButtonState extends State<CyberButton> {
 }
 
 // ==========================================
-// MAGICAL NEON BUTTON (ULTRA THIN & ELEGANT SPECTRUM)
+// MAGICAL NEON BUTTON (ULTRA THIN & UNIFIED)
 // ==========================================
 class MagicalNeonButton extends StatefulWidget {
   final String text;
@@ -258,6 +255,7 @@ class MagicalNeonButton extends StatefulWidget {
 class _MagicalNeonButtonState extends State<MagicalNeonButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _orbitController;
+  bool _pressed = false;
 
   @override
   void initState() {
@@ -279,67 +277,82 @@ class _MagicalNeonButtonState extends State<MagicalNeonButton>
     bool isDisabled = widget.isDone;
 
     return GestureDetector(
-      onTap: isDisabled ? null : widget.onTap,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // ULTRA-THIN MAGIC BORDER (Cyan -> Green -> Gold)
-          if (!isDisabled)
-            AnimatedBuilder(
-              animation: _orbitController,
-              builder: (_, __) => CustomPaint(
-                painter: _NeonBorderPainter(_orbitController.value),
-                child: Container(height: 64, width: double.infinity),
+      onTapDown: (_) => isDisabled ? null : setState(() => _pressed = true),
+      onTapUp: (_) {
+        if (!isDisabled) {
+          setState(() => _pressed = false);
+          widget.onTap();
+        }
+      },
+      onTapCancel: () => isDisabled ? null : setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed
+            ? 0.96
+            : 1.0, // Adds the same luxury press effect as CyberButton
+        duration: const Duration(milliseconds: 100),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // ULTRA-THIN SPECTRUM BORDER
+            if (!isDisabled)
+              AnimatedBuilder(
+                animation: _orbitController,
+                builder: (_, __) => CustomPaint(
+                  painter: _NeonBorderPainter(_orbitController.value),
+                  child: Container(height: 60, width: double.infinity),
+                ),
+              ),
+
+            // INNER BUTTON (100% Matches CyberButton styling)
+            Container(
+              height: 54,
+              width: double.infinity,
+              margin: const EdgeInsets.all(3), // Exact gap for the laser
+              decoration: BoxDecoration(
+                color: AXTheme.panel,
+                borderRadius: BorderRadius.circular(12),
+                border: AXTheme.unifiedBorder, // STRICT CONSISTENCY
+                boxShadow: _pressed || isDisabled
+                    ? []
+                    : const [
+                        BoxShadow(
+                          color: AXTheme.lightShadow,
+                          offset: Offset(-3, -3),
+                          blurRadius: 8,
+                        ),
+                        BoxShadow(
+                          color: AXTheme.darkShadow,
+                          offset: Offset(4, 4),
+                          blurRadius: 10,
+                        ),
+                      ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    widget.isDone ? Icons.check_circle : widget.icon,
+                    color: widget.isDone ? AXTheme.success : AXTheme.goldFlux,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    widget.text,
+                    style: TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontWeight: FontWeight.bold,
+                      color: widget.isDone
+                          ? AXTheme.success
+                          : AXTheme.primaryText,
+                      fontSize: 13,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
               ),
             ),
-
-          // Inner Luxury Surface
-          Container(
-            height: 58,
-            width: double.infinity,
-            margin: const EdgeInsets.all(3), // Space for the ultra-thin laser
-            decoration: BoxDecoration(
-              color: AXTheme.panel,
-              borderRadius: BorderRadius.circular(16),
-              // STRICT CONSISTENCY: 1px subtle border matches exactly
-              border: Border.all(color: AXTheme.subtleBorder, width: 1.0),
-              boxShadow: const [
-                BoxShadow(
-                  color: AXTheme.lightShadow,
-                  offset: Offset(-4, -4),
-                  blurRadius: 10,
-                ),
-                BoxShadow(
-                  color: AXTheme.darkShadow,
-                  offset: Offset(4, 4),
-                  blurRadius: 12,
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  widget.isDone ? Icons.check_circle : widget.icon,
-                  color: widget.isDone ? AXTheme.success : AXTheme.goldFlux,
-                  size: 22,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  widget.text,
-                  style: TextStyle(
-                    fontFamily: 'Orbitron',
-                    fontWeight: FontWeight.bold,
-                    color: widget.isDone
-                        ? AXTheme.success
-                        : AXTheme.primaryText,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -352,22 +365,22 @@ class _NeonBorderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     Rect rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    RRect rrect = RRect.fromRectAndRadius(rect, const Radius.circular(16));
+    RRect rrect = RRect.fromRectAndRadius(rect, const Radius.circular(12));
 
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      // ULTRA THIN ELEGANT LASER (Reduced to 1.2px)
-      ..strokeWidth = 1.2
+      ..strokeWidth =
+          1.2 // ULTRA THIN, ELEGANT LASER
       ..strokeCap = StrokeCap.round
       ..shader = SweepGradient(
         colors: [
-          AXTheme.cyanFlux.withOpacity(0.0),
+          Colors.transparent,
           AXTheme.cyanFlux, // CYAN
           const Color(0xFF00E676), // GREEN
           AXTheme.goldFlux, // GOLD
-          AXTheme.goldFlux.withOpacity(0.0),
+          Colors.transparent,
         ],
-        stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
+        stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
         transform: GradientRotation(animationValue * 2 * math.pi),
       ).createShader(rect);
 
@@ -418,7 +431,7 @@ class RadarPainter extends CustomPainter {
 }
 
 // ==========================================
-// MAGICAL SOS BUTTON (WITH HOLD EFFECT)
+// MAGICAL SOS BUTTON (HOLD-TO-TRIGGER SPECTRUM)
 // ==========================================
 class PanicButton extends StatefulWidget {
   final VoidCallback onPanicTriggered;
@@ -435,7 +448,6 @@ class _PanicButtonState extends State<PanicButton>
   @override
   void initState() {
     super.initState();
-    // Fast rotation for the Danger Magic Ring when held
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -450,7 +462,7 @@ class _PanicButtonState extends State<PanicButton>
 
   void _handlePressDown() {
     setState(() => _pressed = true);
-    _pulseController.repeat(); // Start magic spin
+    _pulseController.repeat();
   }
 
   void _handlePressUp() {
@@ -468,32 +480,27 @@ class _PanicButtonState extends State<PanicButton>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // DANGER MAGIC RING (Only visible when pressed)
+          // DANGER SPECTRUM RING (Red -> Orange -> Gold)
           if (_pressed)
             AnimatedBuilder(
               animation: _pulseController,
               builder: (_, __) => CustomPaint(
                 painter: _DangerOrbitPainter(_pulseController.value),
-                child: const SizedBox(
-                  width: 70,
-                  height: 70,
-                ), // Slightly larger than button
+                child: const SizedBox(width: 68, height: 68),
               ),
             ),
 
-          // Inner Button
           AnimatedScale(
-            scale: _pressed ? 0.92 : 1.0, // Deeper snap for SOS
+            scale: _pressed ? 0.92 : 1.0,
             duration: const Duration(milliseconds: 100),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 100),
-              width: 60,
-              height: 60,
+              width: 58,
+              height: 58,
               decoration: BoxDecoration(
                 color: AXTheme.danger,
                 shape: BoxShape.circle,
-                // STRICT CONSISTENCY: Same subtle border
-                border: Border.all(color: AXTheme.subtleBorder, width: 1.0),
+                border: AXTheme.unifiedBorder, // STRICT CONSISTENCY
                 boxShadow: _pressed
                     ? []
                     : [
@@ -530,15 +537,14 @@ class _DangerOrbitPainter extends CustomPainter {
 
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth =
-          2.0 // Slightly thicker for danger alert
+      ..strokeWidth = 2.0
       ..strokeCap = StrokeCap.round
       ..shader = SweepGradient(
         colors: [
           Colors.transparent,
-          AXTheme.warning, // Orange
-          AXTheme.goldFlux, // Yellow/Gold
-          AXTheme.danger, // Red
+          AXTheme.warning,
+          AXTheme.goldFlux,
+          AXTheme.danger,
           Colors.transparent,
         ],
         stops: const [0.0, 0.3, 0.5, 0.8, 1.0],
