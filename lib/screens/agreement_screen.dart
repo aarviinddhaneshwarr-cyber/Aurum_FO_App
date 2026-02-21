@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:animate_do/animate_do.dart';
 
 import 'core_theme.dart';
-import 'kyc_screen.dart';
+import 'kyc_screen.dart'; // 👈 FIX: We only need this import now!
 
 class AgreementScreen extends StatefulWidget {
   final List<Map<String, dynamic>> items;
@@ -45,6 +46,21 @@ class _AgreementScreenState extends State<AgreementScreen> {
   double get _discountAmount => _grossValuation * (_discountPercent / 100);
   double get _netPayout => _grossValuation - _chargeAmount + _discountAmount;
 
+  // 💰 INDIAN CURRENCY FORMATTER (E.g. 7,58,189)
+  String _formatIndianCurrency(double value) {
+    String result = value.toInt().toString();
+    if (result.length <= 3) return result;
+    String lastThree = result.substring(result.length - 3);
+    String otherNumbers = result.substring(0, result.length - 3);
+    if (otherNumbers.isNotEmpty) {
+      otherNumbers = otherNumbers.replaceAll(
+        RegExp(r'\B(?=(\d{2})+(?!\d))'),
+        ',',
+      );
+    }
+    return '$otherNumbers,$lastThree';
+  }
+
   void _showNegotiationDialog() {
     double tempCharge = _chargePercent;
     TextEditingController otpCtrl = TextEditingController();
@@ -53,10 +69,11 @@ class _AgreementScreenState extends State<AgreementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           String authRequired = "";
-          if (tempCharge < 9.0)
+          if (tempCharge < 9.0) {
             authRequired = "CFO APPROVAL REQUIRED";
-          else if (tempCharge < 11.5)
+          } else if (tempCharge < 11.5) {
             authRequired = "ADMIN APPROVAL REQUIRED";
+          }
           return Dialog(
             backgroundColor: AXTheme.panel,
             shape: RoundedRectangleBorder(
@@ -115,12 +132,13 @@ class _AgreementScreenState extends State<AgreementScreen> {
                     isManual: true,
                     onTap: () {
                       bool authorized = false;
-                      if (tempCharge >= 11.5)
+                      if (tempCharge >= 11.5) {
                         authorized = true;
-                      else if (tempCharge >= 9.0 && otpCtrl.text == "1111")
+                      } else if (tempCharge >= 9.0 && otpCtrl.text == "1111") {
                         authorized = true;
-                      else if (tempCharge < 9.0 && otpCtrl.text == "2222")
+                      } else if (tempCharge < 9.0 && otpCtrl.text == "2222") {
                         authorized = true;
+                      }
 
                       if (authorized) {
                         setState(() => _chargePercent = tempCharge);
@@ -251,7 +269,7 @@ class _AgreementScreenState extends State<AgreementScreen> {
                 children: [
                   _buildRow(
                     "Gross Valuation",
-                    "₹ ${_grossValuation.toStringAsFixed(0)}",
+                    "₹ ${_formatIndianCurrency(_grossValuation)}",
                     Colors.white,
                   ),
                   const SizedBox(height: 10),
@@ -266,7 +284,7 @@ class _AgreementScreenState extends State<AgreementScreen> {
                         ),
                       ),
                       Text(
-                        "- ₹ ${_chargeAmount.toStringAsFixed(0)}",
+                        "- ₹ ${_formatIndianCurrency(_chargeAmount)}",
                         style: AXTheme.value.copyWith(color: AXTheme.danger),
                       ),
                     ],
@@ -274,7 +292,7 @@ class _AgreementScreenState extends State<AgreementScreen> {
                   const SizedBox(height: 10),
                   _buildRow(
                     "Priority Waiver (3%)",
-                    "+ ₹ ${_discountAmount.toStringAsFixed(0)}",
+                    "+ ₹ ${_formatIndianCurrency(_discountAmount)}",
                     AXTheme.success,
                   ),
                   const Divider(color: Colors.white24, height: 30),
@@ -286,7 +304,7 @@ class _AgreementScreenState extends State<AgreementScreen> {
                         style: AXTheme.heading.copyWith(fontSize: 16),
                       ),
                       Text(
-                        "₹ ${_netPayout.toStringAsFixed(0)}",
+                        "₹ ${_formatIndianCurrency(_netPayout)}",
                         style: AXTheme.digital.copyWith(
                           fontSize: 22,
                           color: AXTheme.mutedGold,
@@ -299,9 +317,6 @@ class _AgreementScreenState extends State<AgreementScreen> {
             ),
             const SizedBox(height: 30),
 
-            // ==========================================
-            // ORNAMENTS ITEMIZED BREAKDOWN (RESTORED!)
-            // ==========================================
             Text("ITEMIZED BREAKDOWN", style: AXTheme.terminal),
             const SizedBox(height: 10),
             if (_finalItems.isEmpty)
@@ -350,7 +365,7 @@ class _AgreementScreenState extends State<AgreementScreen> {
                     Row(
                       children: [
                         Text(
-                          "₹${val.toStringAsFixed(0)}",
+                          "₹${_formatIndianCurrency(val)}",
                           style: AXTheme.digital.copyWith(
                             fontSize: 12,
                             color: AXTheme.success,
@@ -373,7 +388,6 @@ class _AgreementScreenState extends State<AgreementScreen> {
             }).toList(),
             const SizedBox(height: 30),
 
-            // NO SIGNATURE PAD! DIRECT SEND TO CUSTOMER
             Text("DIGITAL CONSENT", style: AXTheme.terminal),
             const SizedBox(height: 10),
             Container(
@@ -393,6 +407,7 @@ class _AgreementScreenState extends State<AgreementScreen> {
             ),
             const SizedBox(height: 20),
 
+            // 👈 FIX: Changed the Navigation route back to KYCStatusDashboard with real amount!
             CyberButton(
               text: "TRANSMIT DEAL TO CUSTOMER >",
               onTap: () {
@@ -402,9 +417,14 @@ class _AgreementScreenState extends State<AgreementScreen> {
                     content: Text("AGREEMENT TRANSMITTED TO CUSTOMER APP"),
                   ),
                 );
+
+                // Now it passes the real amount to the KYC Dashboard
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const KYCStatusDashboard()),
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        KYCStatusDashboard(payoutAmount: _netPayout),
+                  ),
                 );
               },
             ),

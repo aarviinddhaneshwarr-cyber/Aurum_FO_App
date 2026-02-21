@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:animate_do/animate_do.dart';
 import 'dart:math' as math; // Used for math.min in Formatter
 
 import 'core_theme.dart';
@@ -72,11 +71,18 @@ class AdvancedIfscFormatter extends TextInputFormatter {
 }
 
 // ==========================================
-// 2. THE TRUE DYNAMIC DASHBOARD
+// 2. THE TRUE DYNAMIC DASHBOARD (BRIDGE FIXED)
 // ==========================================
 
 class KYCStatusDashboard extends StatefulWidget {
-  const KYCStatusDashboard({super.key});
+  final double
+  payoutAmount; // 👈 FIX: Bridge added to catch amount from Agreement
+
+  const KYCStatusDashboard({
+    super.key,
+    required this.payoutAmount,
+  }); // 👈 FIX: Constructor updated
+
   @override
   State<KYCStatusDashboard> createState() => _KYCStatusDashboardState();
 }
@@ -291,8 +297,9 @@ class _KYCStatusDashboardState extends State<KYCStatusDashboard> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
+                      // 👈 FIX: Now passing the real amount to FundTransferScreen
                       builder: (_) =>
-                          const FundTransferScreen(payoutAmount: 485000),
+                          FundTransferScreen(payoutAmount: widget.payoutAmount),
                     ),
                   ),
                 )
